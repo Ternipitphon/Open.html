@@ -2,7 +2,7 @@
    AgriFuture AI — Chat JS  v2.0
    ══════════════════════════════════════════ */
 
-const API_URL = '/chat';
+const API_URL = 'http://localhost:5000/chat';
 const MAX_CHARS = 2000;
 
 /* ── DOM refs ── */

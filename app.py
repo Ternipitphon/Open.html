@@ -1,7 +1,7 @@
 import os
 import json
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -15,6 +15,16 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 # กำหนด API Key ของ Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
+# เสิร์ฟหน้า HTML หลัก
+@app.route('/')
+def index():
+    return send_from_directory('.', 'Open.html')
+
+# เสิร์ฟไฟล์ static ทั้งหมด (CSS, JS, รูปภาพ, วิดีโอ)
+@app.route('/<path:filename>')
+def static_files(filename):
+    return send_from_directory('.', filename)
+
 # ฟังก์ชันช่วยลองใหม่หากติด Rate Limit (429) ด้วยวิธี Exponential Backoff
 def generate_content_with_retry(model, prompt, retries=5, backoff_in_seconds=2):
     for i in range(retries):
@@ -22,7 +32,6 @@ def generate_content_with_retry(model, prompt, retries=5, backoff_in_seconds=2):
             return model.generate_content(prompt)
         except Exception as e:
             if "429" in str(e) and i < retries - 1:
-                # เพิ่มระยะเวลาดีเลย์ขึ้นทีละเท่าตัว
                 time.sleep(backoff_in_seconds * (2 ** i))
                 continue
             raise e
@@ -34,7 +43,6 @@ def analyze_crop():
         if not data:
             return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบข้อมูลที่ส่งมาจากหน้าบ้าน (Body ว่างเปล่า)"}), 400
         
-        # ดึงข้อมูลจาก JSON ที่ส่งมาจากหน้าบ้าน
         province        = data.get('province', '')
         district        = data.get('district', '')
         budget          = data.get('budget', '')
@@ -43,15 +51,12 @@ def analyze_crop():
         planting_month  = data.get('planting_month', '')
         interested_crop = data.get('interested_crop', '')
 
-        # ตรวจสอบว่ามีข้อมูลพืชที่สนใจส่งมาวิเคราะห์หรือไม่ (ป้องกัน Error 400 จากเงื่อนไขคีย์ว่าง)
         if not interested_crop:
             return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบข้อมูลชื่อพืชที่สนใจส่งมาวิเคราะห์"}), 400
 
-        # ตรวจสอบความถูกต้องของ API Key
         if not os.environ.get("GEMINI_API_KEY"):
             return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบ GEMINI_API_KEY กรุณาตั้งค่าในไฟล์ .env"}), 500
 
-        # ประกอบ Prompt ส่งให้ AI พร้อมกำหนดสเปค JSON ที่ต้องการอย่างละเอียด
         prompt = f"""
 คุณคือ AI ผู้เชี่ยวชาญด้านการเกษตรอัจฉริยะ (AgriFuture AI)
 จงวิเคราะห์ความเหมาะสมในการปลูกพืชตามข้อมูลของผู้ใช้ต่อไปนี้ด้วยความรอบคอบสูงสุด:
@@ -100,11 +105,10 @@ def analyze_crop():
     "ธันวาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }}
   }},
   "general_advice": "บทสรุปเชิงลึกและคำแนะนำภาพรวมจากระบบ AI เพื่อความมั่นใจของเกษตรกร",
-  "warning": "คำเตือนวิกฤตที่ต้องเฝ้าระวังเป็นพิเศษ เช่น โรคระบาดประจำพื้นที่ หรือช่วงแล้งวิกฤต ถ้าไม่มีให้ระบุเป็นสตริงว่าง"
+  "warning": "คำเตือนวิกฤตที่ต้องเฝ้าระวังเป็นพิเศษ ถ้าไม่มีให้ระบุเป็นสตริงว่าง"
 }}
 """
         
-        # เรียกใช้งานโมเดลล่าสุด gemini-2.5-flash
         model = genai.GenerativeModel(
             "gemini-2.5-flash",
             generation_config={
@@ -116,7 +120,6 @@ def analyze_crop():
         response = generate_content_with_retry(model, prompt)
         raw_text = response.text.strip()
         
-        # ตรวจเช็คเพื่อความปลอดภัย หากมี Markdown backticks ห่อหุ้มมาให้ทำการถอดออก
         if raw_text.startswith("```json"):
             raw_text = raw_text.split("```json")[1].split("```")[0].strip()
         elif raw_text.startswith("```"):
@@ -141,5 +144,4 @@ def analyze_crop():
         }), 500
 
 if __name__ == '__main__':
-    # เปลี่ยนย้าย Port รันหนีระบบ Chatbot เก่าที่ขวางพอร์ตอยู่ เพื่อตัดปัญหาพอร์ตทับซ้อนกัน 100%
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5001)), debug=False)

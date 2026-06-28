@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Auto Run Flask",
+            "type": "shell",
+            "command": "python app.py", 
+            // 💡 หมายเหตุ: ถ้าใช้ venv ให้เปลี่ยน command เป็น: "call .venv/Scripts/activate && python app.py" (สำหรับ Windows)
+            // หรือ ".venv/bin/activate && python3 app.py" (สำหรับ Mac/Linux)
+            "problemMatcher": [],
+            "runOptions": {
+                "runOn": "folderOpen" // สั่งให้รันทันทีที่เปิดโฟลเดอร์นี้
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        }
+    ]
+}

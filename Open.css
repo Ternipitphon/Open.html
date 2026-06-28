@@ -1,0 +1,173 @@
+ * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Kanit', sans-serif;
+        }
+
+        body {
+            background-color: #0b0f07; /* พื้นหลังมืดโทนเขียวเข้มข้น */
+            color: #ffffff; 
+            overflow: hidden; 
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ── วิดีโอพื้นหลัง + เลเยอร์โทนมืด ───────────────────────── */
+        #bg-video {
+            position: fixed;       
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;    
+            z-index: -2;          
+        }
+
+        /* เลเยอร์ครอบโทนมืดไล่เฉดสีเพื่อความสมจริงและพรีเมียม */
+        .dark-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                135deg,
+                rgba(11, 15, 7, 0.85) 0%,
+                rgba(0, 0, 0, 0.6) 50%,
+                rgba(21, 28, 14, 0.85) 100%
+            );
+            z-index: -1;
+        }
+
+        /* ── เลเยอร์สำหรับกดทั้งหน้าจอเพื่อเข้าเว็บ ─────────────────── */
+        .click-layer {
+            text-decoration: none; 
+            color: inherit;
+            display: flex;
+            justify-content: center;  
+            align-items: center;    
+            width: 100vw;
+            height: 100vh;
+            cursor: pointer; 
+        }
+
+        /* ── กล่องจัดวางเนื้อหากลางหน้าจอและการปรากฏตัว ─────────────── */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;    
+            text-align: center;       
+            padding: 20px;
+            /* อนิเมชันค่อยๆ โผล่ขึ้นมาตอนเปิดหน้าเว็บ */
+            animation: initialFadeUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* ── ส่วนควบคุมโลโก้และเอฟเฟกต์ความมันเงา ───────────────────── */
+        .logo-wrapper {
+            position: relative;
+            max-width: clamp(180px, 25vw, 280px); /* ปรับขนาดตามหน้าจออัตโนมัติ */
+            width: 100%;
+            border-radius: 50%;
+            overflow: hidden; /* บล็อกแสงมันเงาไม่ให้ทะลุออกนอกวงกลมโลโก้ */
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6), 
+                        0 0 30px rgba(123, 204, 58, 0.25); /* รัศมีเรืองแสงสีเขียวจางๆ */
+            /* อนิเมชันลอยขยับขึ้นลงเบาๆ */
+            animation: floatingApp 4s ease-in-out infinite;
+        }
+
+        .main-logo {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+
+        /* ตัวสร้างแสงสะท้อนมันเงาวิ่งผ่าน (Shine Effect) */
+        .logo-wrapper::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -150%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.4) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: rotate(30deg);
+            /* สั่งให้แสงวิ่งผ่านวนลูปทุกๆ 4 วินาที */
+            animation: shineGlow 4s ease-in-out infinite;
+        }
+
+        /* ── ส่วนแสดงผลชื่อเว็บและคำเชิญชวน ──────────────────────── */
+        .web-title {
+            font-family: 'Prompt', sans-serif;
+            font-size: clamp(2rem, 4.5vw, 3.5rem); /* ปรับขนาดอักษรตามหน้าจอ */
+            font-weight: 700;
+            margin-top: 25px;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, #ffd500, #ffee00, #ffea00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .web-title span {
+            color: #ffffff;
+            -webkit-text-fill-color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+        }
+
+        .action-text {
+            font-size: clamp(14px, 1.8vw, 18px);
+            font-weight: 200;
+            color: rgba(232, 245, 224, 0.7);
+            margin-top: 15px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            /* ทำให้ข้อความกะพริบเชิญชวนให้กดเบาๆ */
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        /* ── ANIMATIONS (โซนควบคุมการเคลื่อนไหว) ────────────────────── */
+        
+        /* 1. อนิเมชันเปิดตัวหน้าเว็บโผล่จากด้านล่าง */
+        @keyframes initialFadeUp {
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 2. อนิเมชันลอยขึ้นลงแบบนุ่มนวล */
+        @keyframes floatingApp {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* 3. อนิเมชันแสงมันเงาวิ่งตัดหน้าโลโก้ */
+        @keyframes shineGlow {
+            0% {
+                left: -150%;
+            }
+            30%, 100% {
+                left: 150%;
+            }
+        }
+
+        /* 4. อนิเมชันตัวอักษรกะพริบ */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }

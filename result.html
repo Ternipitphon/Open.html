@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFuture AI — ผลการวิเคราะห์</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="form.css">
+    <link rel="stylesheet" href="result.css">
+</head>
+<body>
+
+    <div class="video-bg">
+        <video autoplay loop muted playsinline>
+            <source src="video/YTDown_YouTube_Media_D2wT35xqGRQ_001_1080p.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <header class="top-bar">
+        <div class="logo-wrap">
+            <img src="img/logo.png" alt="AgriFuture Logo">
+            <span class="logo-text">AgriFuture <span>AI</span></span>
+        </div>
+        <span class="nav-welcome">Welcome</span>
+        <div class="nav-user">
+            <a href="profile.html" class="login-btn" id="login-trigger">
+                <i class="fa-regular fa-circle-user"></i> Login / เข้าสู่ระบบ
+            </a>
+        </div>
+    </header>
+
+    <main class="result-page">
+
+        <div class="info-bar" id="info-bar"></div>
+
+        <div class="loader-wrap" id="loader">
+            <div class="spinner"></div>
+            <div>
+                <div style="font-size:1.05rem;font-weight:600;margin-bottom:.4rem;">กำลังวิเคราะห์ข้อมูล</div>
+                <div class="loader-msg" id="dynamic-loader-msg">
+                    AI กำลังวิเคราะห์สภาพดินย้อนหลังในพื้นที่ของคุณ<span class="loader-dots"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-wrap" id="error-wrap" style="display: none;">
+            <div class="err-icon">⚠️</div>
+            <h2 style="margin-bottom:.5rem;">เกิดข้อผิดพลาด</h2>
+            <p id="error-msg">ไม่สามารถวิเคราะห์ข้อมูลได้ กรุณาลองใหม่</p>
+            <a href="form.html" class="btn-back">
+                <i class="fa-solid fa-arrow-left"></i> กลับไปกรอกข้อมูลใหม่
+            </a>
+        </div>
+
+        <div class="result-content" id="result-content" style="display: none;">
+
+            <div class="crop-hero" id="sec-main"></div>
+
+            <div class="crop-hero">
+                <div class="section-title">
+                    <i class="fa-solid fa-seedling" style="color:#7BCC3A"></i>
+                    พืชทางเลือกที่แนะนำเพิ่มเติม
+                </div>
+                <div class="alt-grid" id="alt-grid"></div>
+            </div>
+
+            <div class="monthly-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-calendar-days" style="color:#F5C518"></i>
+                    พืชราคาดีที่ควรปลูกในแต่ละเดือน (สำหรับพื้นที่ของคุณ)
+                </div>
+                <div class="month-grid" id="month-grid"></div>
+            </div>
+
+            <div class="crop-hero">
+                <div class="section-title">
+                    <i class="fa-solid fa-comments" style="color:#7BCC3A"></i>
+                    คำแนะนำจากผู้เชี่ยวชาญ
+                </div>
+                <div class="advice-card">
+                    <p id="general-advice"></p>
+                </div>
+                <div class="warning-card" id="warning-card" style="display:none;">
+                    <span class="w-icon">🚨</span>
+                    <p id="warning-text"></p>
+                </div>
+            </div>
+
+            <div class="back-row">
+                <a href="form.html" class="btn-back">
+                    <i class="fa-solid fa-arrow-left"></i> กลับไปกรอกข้อมูลใหม่
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey:            "AIzaSyClThtgfsR00SuM3lgM2HOP9175b6FnkYc",
+            authDomain:        "agrifuture-ai-5ade9.firebaseapp.com",
+            projectId:         "agrifuture-ai-5ade9",
+            storageBucket:     "agrifuture-ai-5ade9.firebasestorage.app",
+            messagingSenderId: "634181270751",
+            appId:             "1:634181270751:web:2a9efbb05bd90839853d6a",
+            measurementId:     "G-32C33BG9YX"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db   = firebase.firestore();
+        const auth = firebase.auth();
+        const appId = "agrifuture-ai-5ade9";
+
+        // ── ย้ายหน้าเว็บมายิงดึงข้อมูลวิเคราะห์ที่ Port 5001 หนีพอร์ต 5000 ของตัวแชทบอทของเก่า ──
+        const API_BASE = (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1'
+        ) ? 'http://localhost:5001' : '';
+
+        // ── Read URL params ───────────────────────────────────────────────
+        const params = new URLSearchParams(location.search);
+        const inputs = {
+            province:        params.get('province')        || '',
+            district:        params.get('district')        || '',
+            budget:          params.get('budget')          || '',
+            area:            params.get('area')            || '',
+            water_source:    params.get('water_source')    || '',
+            planting_month:  params.get('planting_month')  || '',
+            interested_crop: params.get('interested_crop') || ''
+        };
+
+        if (!inputs.interested_crop) { location.href = 'form.html'; }
+
+        // ── Label maps ────────────────────────────────────────────────────
+        const budgetLabel = {
+            '5000-10000':  '5,000–10,000 บาท',
+            '10000-20000': '10,000–20,000 บาท',
+            '20000+':      '20,000 บาทขึ้นไป'
+        };
+        const areaLabel = { '5': '5 ไร่', '10': '10 ไร่', '20+': '20 ไร่ขึ้นไป' };
+
+        // ── Render info bar ───────────────────────────────────────────────
+        const infoItems = [
+            ['📍', inputs.province],
+            ['🗺️', inputs.district],
+            ['💰', budgetLabel[inputs.budget]  || inputs.budget],
+            ['📐', areaLabel[inputs.area]      || inputs.area],
+            ['💧', inputs.water_source],
+            ['📅', inputs.planting_month],
+            ['🌱', inputs.interested_crop]
+        ];
+        document.getElementById('info-bar').innerHTML = infoItems
+            .filter(([, val]) => val)
+            .map(([icon, val]) => `<span class="info-chip">${icon} ${val}</span>`)
+            .join('');
+
+        // ── Helpers ───────────────────────────────────────────────────────
+        function chanceClass(c) {
+            if (c === 'สูง') return 'chance-high';
+            if (c === 'ต่ำ') return 'chance-low';
+            return 'chance-mid';
+        }
+        function fillClass(pct) {
+            if (pct >= 70) return '';
+            if (pct >= 45) return 'mid';
+            return 'low';
+        }
+        function tagColor(val) {
+            if (!val) return 'tag-blue';
+            if (val.includes('สูง') || val === 'ง่าย')  return 'tag-green';
+            if (val.includes('ปานกลาง'))                return 'tag-yellow';
+            if (val === 'ยาก' || val === 'ต่ำ')         return 'tag-red';
+            return 'tag-blue';
+        }
+
+        // ── Render main crop ──────────────────────────────────────────────
+        function renderMain(sc) {
+            if (!sc) return;
+            const pct  = Number(sc.success_percent) || 0;
+            const fc   = fillClass(pct);
+            const cc   = chanceClass(sc.success_chance);
+            const pros = (sc.pros || []).map(x => `<li>${x}</li>`).join('');
+            const cons = (sc.cons || []).map(x => `<li>${x}</li>`).join('');
+            const tips = (sc.tips || []).map(x => `<li>${x}</li>`).join('');
+
+            document.getElementById('sec-main').innerHTML = `
+                <div class="crop-hero-header">
+                    <div>
+                        <div class="crop-name-big">${sc.name || inputs.interested_crop}
+                            <small>พืชที่คุณเลือก</small>
+                        </div>
+                    </div>
+                    <div class="chance-badge ${cc}">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        โอกาสสำเร็จ: ${sc.success_chance || 'ปานกลาง'}
+                    </div>
+                </div>
+                <div class="prog-label-row">
+                    <span>ความน่าจะเป็นที่จะสำเร็จ</span>
+                    <span style="color:#7BCC3A;font-weight:600;">${pct}%</span>
+                </div>
+                <div class="prog-track">
+                    <div class="prog-fill ${fc}" style="width:0%" id="main-bar"></div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="val">${sc.estimated_income || '-'}</div>
+                        <div class="lbl">บาท / ไร่ / ปี (ประมาณการ)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="val">${sc.roi_months || '-'}</div>
+                        <div class="lbl">เดือน คืนทุน</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="val">${pct}%</div>
+                        <div class="lbl">โอกาสสำเร็จ</div>
+                    </div>
+                </div>
+                <div class="section-title" style="margin-top:.25rem;">
+                    <i class="fa-solid fa-list-check" style="color:#7BCC3A"></i>
+                    ข้อดี / ความเสี่ยง / เคล็ดลับ
+                </div>
+                <div class="pct-grid">
+                    <div class="pct-box pros">
+                        <h4><i class="fa-solid fa-check"></i> ข้อดี / จุดเด่น</h4>
+                        <ul>${pros || '<li>ไม่มีข้อมูลข้อดี</li>'}</ul>
+                    </div>
+                    <div class="pct-box cons">
+                        <h4><i class="fa-solid fa-triangle-exclamation"></i> ความเสี่ยง</h4>
+                        <ul>${cons || '<li>ไม่มีข้อมูลความเสี่ยง</li>'}</ul>
+                    </div>
+                </div>
+                <div class="pct-box tips" style="margin-top:0;">
+                    <h4><i class="fa-solid fa-lightbulb"></i> เคล็ดลับสำหรับมือใหม่</h4>
+                    <ul>${tips || '<li>ไม่มีข้อมูลเคล็ดลับ</li>'}</ul>
+                </div>
+            `;
+
+            setTimeout(() => {
+                const bar = document.getElementById('main-bar');
+                if (bar) bar.style.width = pct + '%';
+            }, 200);
+        }
+
+        // ── Render alternative crops ──────────────────────────────────────
+        function renderAlts(alts) {
+            const gridEl = document.getElementById('alt-grid');
+            if (!alts || alts.length === 0) {
+                gridEl.innerHTML = '<p style="color:#aaa;grid-column:1/-1;text-align:center;">ไม่มีพืชแนะนำเพิ่มเติม</p>';
+                return;
+            }
+            gridEl.innerHTML = alts.map(a => {
+                const pct = Number(a.success_percent) || 0;
+                return `
+                <div class="alt-card">
+                    <h4>🍃 ${a.name}</h4>
+                    <div class="mini-bar-wrap">
+                        <div class="mini-bar-track">
+                            <div class="mini-bar-fill" style="width:${pct}%"></div>
+                        </div>
+                        <div class="mini-bar-label">
+                            <span>โอกาสสำเร็จ</span>
+                            <span style="color:#7BCC3A;font-weight:600;">${pct}%</span>
+                        </div>
+                    </div>
+                    <div class="alt-tags">
+                        <span class="tag ${tagColor(a.success_chance)}">${a.success_chance || 'ปานกลาง'}</span>
+                        <span class="tag ${tagColor(a.difficulty)}">${a.difficulty || 'ปานกลาง'}</span>
+                        <span class="tag ${tagColor(a.market_trend)}">${a.market_trend || 'คงที่'}</span>
+                    </div>
+                    <div class="alt-income">
+                        💵 รายได้ ~<strong style="color:#e8f5e0;">${a.estimated_income || '-'}</strong> บ./ไร่/ปี
+                        &nbsp;|&nbsp; ⏱ คืนทุน <strong style="color:#e8f5e0;">${a.roi_months || '-'}</strong> เดือน
+                    </div>
+                    <div class="alt-reason">${a.reason || ''}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // ── Render monthly crops ──────────────────────────────────────────
+        function renderMonthly(monthly) {
+            const months = [
+                'มกราคม','กุมภาพันธ์','มีนาคม','เมษายน',
+                'พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม',
+                'กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'
+            ];
+            document.getElementById('month-grid').innerHTML = months.map(m => {
+                const data = monthly[m] || {};
+                return `
+                <div class="month-card">
+                    <div class="m-label">📅 ${m}</div>
+                    <div class="m-crop">${data.crop || '-'}</div>
+                    <div class="m-note">${data.note || ''}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // ── Render advice & warning ───────────────────────────────────────
+        function renderAdvice(d) {
+            document.getElementById('general-advice').textContent = d.general_advice || 'ไม่มีข้อแนะนำเพิ่มเติม';
+            const warningCard = document.getElementById('warning-card');
+            if (d.warning && d.warning.trim() !== '') {
+                document.getElementById('warning-text').textContent = d.warning;
+                warningCard.style.display = 'flex';
+            } else {
+                warningCard.style.display = 'none';
+            }
+        }
+
+        // ── Show result ───────────────────────────────────────────────────
+        function showResult(data) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('error-wrap').style.display = 'none';
+            document.getElementById('result-content').style.display = 'block';
+            renderMain(data.selected_crop);
+            renderAlts(data.alternative_crops || []);
+            renderMonthly(data.monthly_crops  || {});
+            renderAdvice(data);
+        }
+
+        // ── Show error ────────────────────────────────────────────────────
+        function showError(msg) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('result-content').style.display = 'none';
+            document.getElementById('error-wrap').style.display = 'block';
+            document.getElementById('error-msg').textContent = msg;
+        }
+
+        // ── Save to Firestore ─────────────────────────────────────────────
+        async function saveToFirestore(inputs, result, user) {
+            try {
+                // บันทึกวิเคราะห์ข้อมูลลง Firebase ในพิกัดที่ปลอดภัยตามมาตรฐานของระบบ
+                await db.collection('artifacts')
+                    .doc(appId)
+                    .collection('public')
+                    .doc('data')
+                    .collection('analyses')
+                    .add({
+                        inputs, 
+                        result,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        userId: user ? user.uid : 'anonymous'
+                    });
+            } catch (err) {
+                console.warn('Firestore save error:', err.message);
+            }
+        }
+
+        // ── บันทึก session ลง localStorage พร้อม inputs+result ──────────────────
+        const USAGE_KEY  = 'agrifuture_usage';
+
+        function recordUsageLocal(email, type, inputs, result) {
+            const all = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+            if (!all[email]) all[email] = { sessions: [], daily: {} };
+            const now = new Date();
+            const dateKey = now.toISOString().split('T')[0];
+            
+            all[email].sessions.unshift({
+                type,
+                time:   now.toISOString(),
+                inputs: inputs,
+                result: result
+            });
+            if (all[email].sessions.length > 50) {
+                all[email].sessions = all[email].sessions.slice(0, 50);
+            }
+            all[email].daily[dateKey] = (all[email].daily[dateKey] || 0) + 1;
+            localStorage.setItem(USAGE_KEY, JSON.stringify(all));
+        }
+
+        // ── Loading tips ──────────────────────────────────────────────────
+        const loadingTips = [
+            "รู้หรือไม่? การตรวจสภาพดินก่อนปลูก ช่วยลดต้นทุนค่าปุ๋ยได้ถึง 30%",
+            "ระบบกำลังวิเคราะห์สถิติปริมาณน้ำฝนย้อนหลังในพื้นที่ของคุณ...",
+            "การปลูกพืชทางเลือกช่วยกระจายความเสี่ยงเมื่อราคาตลาดผันผวน",
+            "กำลังคำนวณระยะเวลาคืนทุน (ROI) และประมาณการรายได้ของพืชที่คุณสนใจ...",
+            "เคล็ดลับมือใหม่: เริ่มต้นจากพื้นที่แปลงเล็กๆ เพื่อเรียนรู้พฤติกรรมพืชก่อนขยายจริง",
+            "AI กำลังวิเคราะห์ความเหมาะสมของพืชให้สอดคล้องกับแหล่งน้ำที่คุณเลือก..."
+        ];
+
+        let loadingIntervalId = null;
+        function startLoadingMessages() {
+            const msgEl = document.getElementById('dynamic-loader-msg');
+            if (!msgEl) return;
+            let index = 0;
+            loadingIntervalId = setInterval(() => {
+                const loader = document.getElementById('loader');
+                if (!loader || loader.style.display === 'none') {
+                    clearInterval(loadingIntervalId);
+                    return;
+                }
+                msgEl.innerHTML = loadingTips[index] + '<span class="loader-dots"></span>';
+                index = (index + 1) % loadingTips.length;
+            }, 3500);
+        }
+
+        // ── Main: เรียก Backend ──────────────────────────────────────────
+        async function analyzeWithGemini(user) {
+            startLoadingMessages();
+            try {
+                // ส่งค่าพารามิเตอร์เกษตรกรรมทั้งหมดไปที่พอร์ตหลังบ้านด้วยโครงสร้าง JSON
+                const res = await fetch(`${API_BASE}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        province:        inputs.province,
+                        district:        inputs.district,
+                        budget:          inputs.budget,
+                        area:            inputs.area,
+                        water_source:    inputs.water_source,
+                        planting_month:  inputs.planting_month,
+                        interested_crop: inputs.interested_crop
+                    })
+                });
+
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({}));
+                    throw new Error(errBody.error || `HTTP ${res.status}`);
+                }
+
+                const json = await res.json();
+
+                if (json.success && json.data) {
+                    showResult(json.data);
+                    saveToFirestore(inputs, json.data, user);
+
+                    if (user && user.email) {
+                        const cropName    = json.data.selected_crop?.name || inputs.interested_crop;
+                        const province    = inputs.province || '';
+                        const sessionType = `วิเคราะห์การปลูก ${cropName} (${province})`;
+                        recordUsageLocal(user.email, sessionType, inputs, json.data);
+                    }
+                } else {
+                    throw new Error(json.error || 'โครงสร้างข้อมูลที่ได้รับไม่ถูกต้อง');
+                }
+
+            } catch (err) {
+                console.error('Error:', err);
+                showError('ไม่สามารถเชื่อมต่อกับระบบวิเคราะห์ได้: ' + err.message);
+            }
+        }
+
+        // ── Starting trigger ──────────────────────────────────────────────
+        document.addEventListener("DOMContentLoaded", () => {
+            let hasAnalyzed = false;
+            auth.onAuthStateChanged((user) => {
+                if (!hasAnalyzed) {
+                    hasAnalyzed = true;
+                    analyzeWithGemini(user);
+                }
+            });
+        });
+    </script>
+    <script type="module" src="profile.js"></script>
+    <script src="nav-auth.js"></script>
+</body>
+</html>

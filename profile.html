@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>โปรไฟล์ผู้ใช้ — AgriFuture AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="profile.css">
+  <link rel="stylesheet" href="result.css">
+</head>
+<body>
+
+<div class="auth-wrap" id="auth-wrap">
+  <div class="logo"><span>AgriFuture <em>AI</em></span></div>
+
+  <div id="auth-area" class="section active">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-login-btn">เข้าสู่ระบบ</button>
+      <button class="tab-btn" id="tab-register-btn">สมัครสมาชิก</button>
+    </div>
+
+    <div class="social-wrap">
+      <button class="btn-social btn-google" id="btn-google-login">
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.6 2.2 30.1 0 24 0 14.6 0 6.6 5.5 2.8 13.5l7.9 6.2C12.6 13 17.9 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.5 2.8-2.1 5.2-4.5 6.8l7 5.4c4.1-3.8 6.3-9.4 6.3-16.2z"/>
+          <path fill="#FBBC05" d="M10.7 28.3A14.5 14.5 0 0 1 9.5 24c0-1.5.3-2.9.7-4.3L2.3 13.5A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.4 10.6l8.3-6.3z"/>
+          <path fill="#34A853" d="M24 48c6.1 0 11.2-2 14.9-5.4l-7-5.4c-2 1.3-4.5 2.1-7.9 2.1-6.1 0-11.4-4.1-13.3-9.7l-7.9 6.1C6.5 42.5 14.6 48 24 48z"/>
+        </svg>
+        เข้าสู่ระบบด้วย Google
+      </button>
+      <div class="divider"><span>หรือใช้อีเมล</span></div>
+    </div>
+
+    <div id="login-form" class="section active">
+      <div class="field">
+        <label>อีเมล (Email)</label>
+        <input type="email" id="login-email" placeholder="example@email.com">
+      </div>
+      <div class="field">
+        <label>รหัสผ่าน (Password)</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+      <button class="btn-main" id="btn-execute-login">เข้าสู่ระบบ</button>
+      <div id="login-msg" class="msg"></div>
+    </div>
+
+    <div id="register-form" class="section">
+      <div class="avatar-wrap">
+        <img id="reg-preview" class="avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='40' r='22' fill='%23aaa'/%3E%3Cellipse cx='50' cy='85' rx='32' ry='22' fill='%23aaa'/%3E%3C/svg%3E" alt="avatar">
+        <label class="avatar-label" for="reg-image-input">เลือกรูปโปรไฟล์</label>
+        <input type="file" id="reg-image-input" accept="image/*" style="display:none">
+      </div>
+      <div class="field">
+        <label>ชื่อ - นามสกุล</label>
+        <input type="text" id="reg-name" placeholder="ชื่อ นามสกุล">
+      </div>
+      <div class="field">
+        <label>อีเมล (Email)</label>
+        <input type="email" id="reg-email" placeholder="example@email.com">
+      </div>
+      <div class="field">
+        <label>รหัสผ่าน (Password)</label>
+        <input type="password" id="reg-password" placeholder="อย่างน้อย 6 ตัวอักษร">
+      </div>
+      <button class="btn-main" id="btn-execute-register">สมัครสมาชิก</button>
+      <div id="register-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" style="display:none;">
+    <div class="spinner"></div>
+    <p>กำลังดำเนินการ...</p>
+  </div>
+</div>
+
+<div class="dash-wrap" id="dash-wrap">
+
+  <div class="left-panel">
+    <div id="left-view" class="section active">
+      <div class="logo"><span>AgriFuture <em>AI</em></span></div>
+      <div class="profile-avatar-wrap">
+        <img id="view-avatar" class="profile-avatar" src="" alt="avatar">
+        <div id="view-name" class="profile-name"></div>
+        <div id="view-handle" class="profile-handle"></div>
+        <div id="view-provider" class="provider-badge"></div>
+      </div>
+      <div class="info-row"><span class="key">อีเมล</span><span class="val" id="view-email"></span></div>
+      <div class="info-row" id="password-row"><span class="key">รหัสผ่าน</span><span class="val">••••••••</span></div>
+      <div class="info-row"><span class="key">สถานะ</span><span class="val" style="color:var(--green);">● Active</span></div>
+
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-lbl">ทั้งหมด</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="stat-today">0</div>
+          <div class="stat-lbl">วันนี้</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="stat-days">1</div>
+          <div class="stat-lbl">วัน streak</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 14px;">
+        <div style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">📈 สถิติเรียกใช้ AI (7 วันล่าสุด)</div>
+        <div class="mini-chart-box">
+          <canvas id="miniUsageChart"></canvas>
+        </div>
+      </div>
+
+      <button class="btn-main" style="margin-top:18px" id="btn-go-edit">✏️ แก้ไขข้อมูล</button>
+      <button class="btn-outline" id="btn-logout">ออกจากระบบ</button>
+      <a href="form.html" class="back-link">← กลับหน้าหลัก</a>
+    </div>
+
+    <div id="left-edit" class="section">
+      <div class="logo"><span>AgriFuture <em>AI</em></span></div>
+      <div class="avatar-wrap">
+        <img id="edit-preview" class="avatar-img" src="" alt="avatar">
+        <label class="avatar-label" for="edit-image-input">เปลี่ยนรูป</label>
+        <input type="file" id="edit-image-input" accept="image/*" style="display:none">
+      </div>
+      <div class="field">
+        <label>ชื่อ - นามสกุล</label>
+        <input type="text" id="edit-name">
+      </div>
+      <div class="field" id="edit-email-field">
+        <label>อีเมล (Email)</label>
+        <input type="email" id="edit-email">
+      </div>
+      <div class="field" id="edit-password-field">
+        <label>รหัสผ่านใหม่ (เว้นว่างถ้าไม่ต้องการเปลี่ยน)</label>
+        <input type="password" id="edit-password" placeholder="••••••••">
+      </div>
+      <button class="btn-main" id="btn-save-edit">💾 บันทึกการแก้ไข</button>
+      <button class="btn-outline" id="btn-cancel-edit">ยกเลิก</button>
+      <div id="edit-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+
+    <div class="season-ring-card">
+      <div id="season-ring-svg"></div>
+      <div class="season-ring-info">
+        <div class="season-ring-stage" id="season-ring-stage">ช่วง: ต้นกล้า</div>
+        <div class="season-ring-title" id="season-ring-title">ฤดูเพาะปลูกที่ 1</div>
+        <div class="season-ring-desc" id="season-ring-desc">เริ่มต้นบันทึกข้อมูลฟาร์ม ให้ AI เรียนรู้พื้นที่ของคุณ</div>
+        <div class="season-ring-next" id="season-ring-next">อีก 10 ครั้งสู่ช่วงถัดไป</div>
+      </div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-card-title"><span>📊</span> ภาพรวมการใช้งาน AgriFuture AI</div>
+      <div class="overview-grid">
+        <div class="ov-box">
+          <div class="ov-num" id="ov-total">0</div>
+          <div class="ov-label">คำขอประมวลผล</div>
+          <div class="ov-trend" id="ov-trend">เริ่มต้น</div>
+        </div>
+        <div class="ov-box">
+          <div class="ov-num" style="color: var(--green);">100%</div>
+          <div class="ov-label">การวิเคราะห์สำเร็จ</div>
+          <div class="ov-trend">เสถียรภาพสูง</div>
+        </div>
+        <div class="ov-box">
+          <div class="ov-num" id="ov-avg">0</div>
+          <div class="ov-label">เฉลี่ย/วัน</div>
+          <div class="ov-trend">7 วันล่าสุด</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="r-card">
+      <div class="badge-section-head">
+        <div class="r-card-title" style="margin-bottom:0;"><span>🎖️</span> เหรียญตราความสำเร็จ</div>
+        <div class="badge-count-pill" id="badge-count-pill">0 / 8 ปลดล็อกแล้ว</div>
+      </div>
+      <div class="badge-grid" id="badge-grid"></div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-card-title"><span>📈</span> กราฟบันทึกการใช้งาน AI (7 วันล่าสุด)</div>
+      <div class="chart-box">
+        <canvas id="usageChart"></canvas>
+      </div>
+      <div class="insight-box" style="margin-top: 14px;">
+        💡 <strong>AI Analysis:</strong> ระบบกำลังติดตามข้อมูลฟาร์มของคุณอย่างใกล้ชิด ยิ่งบันทึกข้อมูลบ่อย AI จะยิ่งคำนวณรอบสถิติได้แม่นยำยิ่งขึ้น!
+      </div>
+    </div>
+
+    <div class="r-card">
+      <div class="r-card-title"><span>🕐</span> ประวัติการทำงานและบันทึกวิเคราะห์ฟาร์ม</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px; padding: 8px 12px; background:rgba(234,175,17,0.04); border-radius:8px; border-left:3px solid rgba(234,175,17,0.3);">
+        💡 คลิกที่รายการเพื่อดูผลวิเคราะห์ย้อนหลัง
+      </div>
+      <div class="session-list" id="session-list">
+        <div style="color:var(--muted); font-size:13px; text-align:center; padding:20px 0;">ยังไม่มีประวัติการใช้งาน</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="achievement-toast"></div>
+
+<div id="result-modal">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="fa-solid fa-seedling" style="color:#7BCC3A"></i>
+        ผลการวิเคราะห์ฟาร์ม (ย้อนหลัง)
+      </div>
+      <div id="export-btn-group" style="display:flex; gap:8px; margin-top:10px;">
+        <button id="btn-export-image" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-family:'Prompt',sans-serif; font-size:13px; cursor:pointer;">
+          <i class="fa-solid fa-image"></i> ดาวน์โหลดรูปภาพ
+        </button>
+        <button id="btn-export-pdf" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); font-family:'Prompt',sans-serif; font-size:13px; cursor:pointer;">
+          <i class="fa-solid fa-file-pdf"></i> ดาวน์โหลด PDF
+        </button>
+      </div>
+      <button id="modal-close-btn" style="position:absolute; top:14px; right:16px; width:32px; height:32px; border:none; border-radius:50%; background:var(--panel-2); color:var(--muted); font-size:18px; cursor:pointer; line-height:1;">×</button>
+    </div>
+
+    <div class="info-bar" id="modal-info-bar"></div>
+
+    <div class="crop-hero" id="modal-sec-main"></div>
+
+    <div class="crop-hero">
+      <div class="section-title">
+        <i class="fa-solid fa-seedling" style="color:#7BCC3A"></i>
+        พืชทางเลือกที่แนะนำเพิ่มเติม
+      </div>
+      <div class="alt-grid" id="modal-alt-grid"></div>
+    </div>
+
+    <div class="monthly-section">
+      <div class="section-title">
+        <i class="fa-solid fa-calendar-days" style="color:#F5C518"></i>
+        พืชราคาดีที่ควรปลูกในแต่ละเดือน (สำหรับพื้นที่ของคุณ)
+      </div>
+      <div class="month-grid" id="modal-month-grid"></div>
+    </div>
+
+    <div class="crop-hero">
+      <div class="section-title">
+        <i class="fa-solid fa-comments" style="color:#7BCC3A"></i>
+        คำแนะนำจากผู้เชี่ยวชาญ
+      </div>
+      <div class="advice-card">
+        <p id="modal-general-advice"></p>
+      </div>
+      <div class="warning-card" id="modal-warning-card" style="display:none;">
+        <span class="w-icon">🚨</span>
+        <p id="modal-warning-text"></p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="profile.js"></script>
+</body>
+</html>

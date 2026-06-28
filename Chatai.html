@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFuture AI — แชทเกษตร</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="Chatai.css">
+</head>
+<body>
+
+    <div class="video-bg">
+        <video autoplay loop muted playsinline>
+            <source src="video/YTDown_YouTube_Media_D2wT35xqGRQ_001_1080p.mp4" type="video/mp4">
+        </video>
+    </div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <!-- ════════════════ SIDEBAR ════════════════ -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-logo">
+            <img src="img/logo.png" alt="logo">
+            <span class="logo-text">AgriFuture <span>AI</span></span>
+        </div>
+
+        <button class="new-chat-btn" id="newChatBtn">
+            <i class="fa-solid fa-pen-to-square"></i>
+            แชทใหม่
+        </button>
+
+        <div class="sidebar-section-label">หัวข้อที่อนุญาต</div>
+        <div class="topic-chips">
+            <span class="chip"><i class="fa-solid fa-seedling"></i> เกษตรกรรม</span>
+            <span class="chip"><i class="fa-solid fa-microchip"></i> เทคโนโลยีเกษตร</span>
+            <span class="chip"><i class="fa-solid fa-newspaper"></i> ข่าวเกษตร</span>
+        </div>
+
+        <div class="sidebar-section-label">ประวัติการสนทนา</div>
+        <div class="history-search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" class="history-search" id="historySearch" placeholder="ค้นหาประวัติ...">
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="history-empty">
+                <i class="fa-regular fa-clock"></i>
+                ยังไม่มีประวัติ
+            </div>
+        </div>
+
+        <!-- Bottom Profile Area -->
+        <div class="sidebar-footer">
+            <a href="form.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                กลับหน้าหลัก
+            </a>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <a href="profile.html" class="profile-row" id="profileRow" style="flex:1; min-width:0;">
+                    <div class="profile-avatar" id="profileAvatar">
+                        <img id="profileImg" src="" alt="" style="display:none; width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                        <span id="profileInitial">U</span>
+                    </div>
+                    <div class="profile-info">
+                        <span class="profile-name" id="profileName">ผู้ใช้งาน</span>
+                        <span class="profile-role">Free</span>
+                    </div>
+                </a>
+                <button class="theme-toggle" id="themeToggle" title="เปลี่ยน Theme">
+                    <i class="fa-solid fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ════════════════ MAIN CHAT AREA ════════════════ -->
+    <div class="chat-wrapper">
+
+        <header class="chat-topbar">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="topbar-title">
+                <i class="fa-solid fa-leaf"></i>
+                <span id="chatTitle">AgriFuture AI Chat</span>
+            </div>
+            <div class="topbar-right">
+                <button class="clear-chat-btn" id="clearChatBtn" title="ล้างแชท">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>ล้างแชท</span>
+                </button>
+                <div class="topbar-badge">
+                    <span class="badge-dot"></span> ออนไลน์
+                </div>
+            </div>
+        </header>
+
+        <div class="messages-area" id="messagesArea">
+            <div class="welcome-state" id="welcomeState">
+                <div class="welcome-icon">
+                    <i class="fa-solid fa-seedling"></i>
+                </div>
+                <h2>จะเริ่มต้นจากตรงไหนดี?</h2>
+                <p>ถามเรื่องการเกษตร เทคโนโลยีเกษตร หรือข่าวสารการเกษตรได้เลย</p>
+                <div class="suggestion-grid">
+                    <button class="suggestion-card" onclick="sendSuggestion('พืชอะไรปลูกได้ดีในหน้าแล้ง?')">
+                        <i class="fa-solid fa-sun"></i>
+                        <span>พืชอะไรปลูกได้ดีในหน้าแล้ง?</span>
+                    </button>
+                    <button class="suggestion-card" onclick="sendSuggestion('เทคโนโลยี IoT ในการเกษตรคืออะไร?')">
+                        <i class="fa-solid fa-wifi"></i>
+                        <span>IoT ในการเกษตรคืออะไร?</span>
+                    </button>
+                    <button class="suggestion-card" onclick="sendSuggestion('วิธีแก้ไขดินเปรี้ยวสำหรับปลูกข้าว')">
+                        <i class="fa-solid fa-flask"></i>
+                        <span>วิธีแก้ดินเปรี้ยวสำหรับข้าว</span>
+                    </button>
+                    <button class="suggestion-card" onclick="sendSuggestion('ราคายางพาราวันนี้เป็นเท่าไหร่?')">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>ราคายางพาราล่าสุด</span>
+                    </button>
+                    <button class="suggestion-card" onclick="sendSuggestion('วิธีป้องกันโรคข้าวในฤดูฝน')">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>ป้องกันโรคข้าวในฤดูฝน</span>
+                    </button>
+                    <button class="suggestion-card" onclick="sendSuggestion('ปุ๋ยชีวภาพต่างจากปุ๋ยเคมีอย่างไร?')">
+                        <i class="fa-solid fa-leaf"></i>
+                        <span>ปุ๋ยชีวภาพ vs ปุ๋ยเคมี</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scroll to bottom button (inside messages-area) -->
+            <button class="scroll-btn" id="scrollBtn" title="เลื่อนลงล่าง">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-wrap">
+                <textarea
+                    id="chatInput"
+                    placeholder="ถามเรื่องการเกษตร เทคโนโลยีเกษตร หรือข่าวเกษตร..."
+                    rows="1"
+                    maxlength="2000"
+                ></textarea>
+                <button class="clear-input-btn" id="clearInputBtn" title="ล้างข้อความ">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <button class="send-btn" id="sendBtn" title="ส่งข้อความ (Enter)">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+            <div class="input-footer">
+                <span class="char-counter" id="charCounter">0 / 2000</span>
+                <span class="input-disclaimer">AgriFuture AI · ตอบเฉพาะด้านการเกษตรเท่านั้น</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fa-solid fa-check"></i>
+        <span id="toastMsg">คัดลอกแล้ว</span>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script>
+    const firebaseConfig = {
+        apiKey:            "AIzaSyClThtgfsR00SuM3lgM2HOP9175b6FnkYc",
+        authDomain:        "agrifuture-ai-5ade9.firebaseapp.com",
+        projectId:         "agrifuture-ai-5ade9",
+        storageBucket:     "agrifuture-ai-5ade9.firebasestorage.app",
+        messagingSenderId: "634181270751",
+        appId:             "1:634181270751:web:2a9efbb05bd90839853d6a",
+        measurementId:     "G-32C33BG9YX"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+    firebase.auth().onAuthStateChanged(user => {
+        const nameEl    = document.getElementById('profileName');
+        const imgEl     = document.getElementById('profileImg');
+        const initEl    = document.getElementById('profileInitial');
+        if (user) {
+            const name = user.displayName || user.email?.split('@')[0] || 'ผู้ใช้';
+            nameEl.textContent = name;
+            if (user.photoURL) {
+                imgEl.src = user.photoURL;
+                imgEl.style.display = 'block';
+                initEl.style.display = 'none';
+            } else {
+                imgEl.style.display = 'none';
+                initEl.style.display = 'flex';
+                initEl.textContent = name.charAt(0).toUpperCase();
+            }
+        }
+    });
+    </script>
+    <script src="Chatai.js"></script>
+    <script src="nav-auth.js"></script>
+</body>
+</html>

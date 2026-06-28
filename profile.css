@@ -1,0 +1,436 @@
+/* ============================================================
+   AgriFuture AI — profile.css
+   ธีมหลัก: เขียวเข้ม + ทอง (Earth & Gold)
+   ============================================================ */
+
+:root {
+  --bg: #0e1a0e;
+  --panel: #142414;
+  --panel-2: #182a18;
+  --border: rgba(245, 239, 224, 0.1);
+  --text: #f5efe0;
+  --muted: #8aa088;
+  --gold: #eaaf11;
+  --gold-soft: rgba(234, 175, 17, 0.14);
+  --green: #7bcc3a;
+  --green-soft: rgba(123, 204, 58, 0.14);
+  --earth: #8b5e34;
+  --silver: #c7ccd6;
+  --emerald: #15b894;
+  --danger: #e2554b;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --shadow-1: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20% 0%, #16291a 0%, var(--bg) 55%);
+  color: var(--text);
+  font-family: 'Prompt', sans-serif;
+  min-height: 100vh;
+}
+
+a { color: var(--gold); text-decoration: none; }
+
+.logo span { font-size: 20px; font-weight: 600; letter-spacing: 0.3px; }
+.logo em { color: var(--gold); font-style: normal; font-weight: 700; }
+
+/* ---------- Auth ---------- */
+.auth-wrap {
+  max-width: 420px;
+  margin: 48px auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-1);
+}
+.tabs { display: flex; gap: 8px; margin: 20px 0 18px; background: var(--panel-2); border-radius: var(--r-md); padding: 4px; }
+.tab-btn {
+  flex: 1; padding: 10px; border: none; background: transparent; color: var(--muted);
+  font-family: 'Prompt', sans-serif; font-weight: 500; border-radius: var(--r-sm); cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn.active { background: var(--gold); color: #1a1306; font-weight: 600; }
+
+.social-wrap { margin-bottom: 6px; }
+.btn-social {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 11px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); font-family: 'Prompt', sans-serif;
+  font-size: 14px; cursor: pointer; transition: border-color 0.2s;
+}
+.btn-social:hover { border-color: var(--gold); }
+.divider { display: flex; align-items: center; text-align: center; color: var(--muted); font-size: 12px; margin: 16px 0; }
+.divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
+.divider span { padding: 0 10px; }
+
+.section { display: none; }
+.section.active { display: block; }
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.field input {
+  width: 100%; padding: 11px 12px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); font-family: 'Prompt', sans-serif; font-size: 14px;
+}
+.field input:focus { outline: 2px solid var(--gold); border-color: transparent; }
+
+.btn-main {
+  width: 100%; padding: 12px; border: none; border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--gold), #f5c518); color: #1a1306;
+  font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 14.5px; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-main:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(234, 175, 17, 0.25); }
+.btn-main:focus-visible, .btn-outline:focus-visible, .tab-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.btn-outline {
+  width: 100%; margin-top: 8px; padding: 11px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  font-family: 'Prompt', sans-serif; font-weight: 500; cursor: pointer;
+}
+.btn-outline:hover { border-color: var(--danger); color: var(--danger); }
+
+.msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+.msg.error { color: var(--danger); }
+.msg.success { color: var(--green); }
+
+.avatar-wrap { text-align: center; margin-bottom: 18px; }
+.avatar-img { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid var(--gold); }
+.avatar-label {
+  display: inline-block; margin-top: 8px; font-size: 12px; color: var(--gold);
+  cursor: pointer; border-bottom: 1px dashed var(--gold);
+}
+
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(14, 26, 14, 0.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999;
+}
+.spinner {
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 4px solid var(--border); border-top-color: var(--gold);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Dashboard layout ---------- */
+.dash-wrap {
+  display: none;
+  max-width: 1180px;
+  margin: 28px auto;
+  padding: 0 20px;
+  grid-template-columns: 320px 1fr;
+  gap: 22px;
+}
+.dash-wrap.active { display: grid; }
+
+.left-panel, .r-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-1);
+}
+.left-panel { align-self: start; position: sticky; top: 20px; }
+.right-panel { display: flex; flex-direction: column; gap: 18px; }
+
+.profile-avatar-wrap { text-align: center; margin: 18px 0 16px; }
+.profile-avatar { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 3px solid var(--gold); }
+.profile-name { font-size: 17px; font-weight: 600; margin-top: 10px; }
+.profile-handle { font-size: 12px; color: var(--muted); }
+.provider-badge {
+  display: inline-block; margin-top: 6px; font-size: 10.5px; padding: 3px 10px;
+  border-radius: 99px; background: var(--green-soft); color: var(--green); font-weight: 500;
+}
+
+.info-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.info-row .key { color: var(--muted); }
+
+.stats-row { display: flex; gap: 8px; margin-top: 16px; }
+.stat-box { flex: 1; background: var(--panel-2); border-radius: var(--r-md); padding: 10px 6px; text-align: center; }
+.stat-num { font-size: 19px; font-weight: 700; color: var(--gold); }
+.stat-lbl { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
+.mini-chart-box { height: 70px; margin-top: 8px; }
+
+/* ---------- Right panel cards ---------- */
+.r-card-title {
+  display: flex; align-items: center; gap: 8px; font-size: 15.5px; font-weight: 600;
+  margin-bottom: 16px;
+}
+.overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ov-box { background: var(--panel-2); border-radius: var(--r-md); padding: 16px 10px; text-align: center; }
+.ov-num { font-size: 24px; font-weight: 700; }
+.ov-label { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.ov-trend { font-size: 10.5px; color: var(--green); margin-top: 2px; }
+
+.chart-box { height: 220px; }
+.insight-box {
+  font-size: 12.5px; color: var(--muted); background: var(--gold-soft);
+  border-radius: var(--r-sm); padding: 10px 12px; line-height: 1.6;
+}
+
+.session-list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+.session-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel-2); border-radius: var(--r-sm); padding: 10px 14px; cursor: pointer;
+  transition: background 0.15s;
+}
+.session-item:hover { background: rgba(234, 175, 17, 0.08); }
+
+.back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: var(--muted); }
+
+/* ============================================================
+   SEASON RING — signature element
+   วงแหวนแสดงสถานะฤดูเพาะปลูกของผู้ใช้ (ต้นกล้า→เติบโต→ออกผล→เก็บเกี่ยว)
+   ============================================================ */
+.season-ring-card {
+  background: linear-gradient(160deg, var(--panel-2) 0%, var(--panel) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--shadow-1);
+  position: relative;
+  overflow: hidden;
+}
+.season-ring-card::before {
+  content: '';
+  position: absolute; top: -40%; right: -20%; width: 220px; height: 220px;
+  background: radial-gradient(circle, var(--gold-soft), transparent 70%);
+  pointer-events: none;
+}
+.season-ring-svg { flex-shrink: 0; width: 128px; height: 128px; }
+.season-ring-track { fill: none; stroke: var(--border); stroke-width: 10; }
+.season-ring-fill {
+  fill: none; stroke: var(--gold); stroke-width: 10; stroke-linecap: round;
+  transform: rotate(-90deg); transform-origin: center;
+  transition: stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.season-ring-icon { font-size: 28px; }
+.season-ring-stage { font-size: 11px; color: var(--gold); font-weight: 600; letter-spacing: 0.5px; }
+.season-ring-info { flex: 1; }
+.season-ring-title { font-size: 16.5px; font-weight: 700; margin-bottom: 4px; }
+.season-ring-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.season-ring-next {
+  margin-top: 10px; font-size: 11.5px; color: var(--text);
+  background: rgba(245, 239, 224, 0.06); display: inline-block;
+  padding: 5px 11px; border-radius: 99px;
+}
+
+/* ============================================================
+   BADGES / ACHIEVEMENTS
+   ============================================================ */
+.badge-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.badge-count-pill {
+  font-size: 12px; color: var(--gold); background: var(--gold-soft);
+  padding: 4px 12px; border-radius: 99px; font-weight: 600;
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 16px 12px;
+}
+
+.badge-cell { display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center; }
+
+.badge-hex {
+  position: relative;
+  width: 72px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  font-size: 28px;
+  cursor: default;
+  transition: transform 0.2s ease;
+}
+.badge-cell:hover .badge-hex { transform: translateY(-3px) scale(1.04); }
+
+.badge-hex.tier-locked {
+  background: var(--panel-2);
+  border: 2px dashed var(--border);
+  color: var(--muted);
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.badge-hex.tier-earth {
+  background: linear-gradient(150deg, #8b5e34, #5e3e20);
+  box-shadow: 0 4px 14px rgba(139, 94, 52, 0.4), inset 0 0 0 2px rgba(245, 239, 224, 0.15);
+}
+.badge-hex.tier-silver {
+  background: linear-gradient(150deg, #e3e7ee, #9aa3b2);
+  box-shadow: 0 4px 14px rgba(199, 204, 214, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+.badge-hex.tier-gold {
+  background: linear-gradient(150deg, #ffd866, #eaaf11);
+  box-shadow: 0 4px 18px rgba(234, 175, 17, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+.badge-hex.tier-emerald {
+  background: linear-gradient(150deg, #4fe0b8, #0e8f6f);
+  box-shadow: 0 4px 18px rgba(21, 184, 148, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+.badge-hex.tier-gold::after, .badge-hex.tier-emerald::after {
+  content: '';
+  position: absolute; inset: 0;
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.35) 45%, transparent 60%);
+  animation: badgeShine 3.2s ease-in-out infinite;
+}
+@keyframes badgeShine {
+  0% { transform: translateX(-60%); }
+  100% { transform: translateX(60%); }
+}
+.badge-hex.tier-new {
+  animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes badgePop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.badge-name { font-size: 11.5px; font-weight: 600; line-height: 1.3; }
+.badge-name.locked { color: var(--muted); }
+.badge-sub { font-size: 9.5px; color: var(--muted); }
+
+/* ============================================================
+   LEADERBOARD
+   ============================================================ */
+.lb-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.lb-tab {
+  font-size: 12px; padding: 6px 14px; border-radius: 99px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; font-family: 'Prompt', sans-serif;
+  transition: all 0.15s;
+}
+.lb-tab.active { background: var(--gold); color: #1a1306; border-color: var(--gold); font-weight: 600; }
+
+.lb-list { display: flex; flex-direction: column; gap: 6px; }
+.lb-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border-radius: var(--r-sm); background: var(--panel-2);
+  transition: transform 0.15s;
+}
+.lb-row:hover { transform: translateX(2px); }
+.lb-row.is-me {
+  background: var(--gold-soft);
+  border: 1px solid rgba(234, 175, 17, 0.4);
+}
+.lb-rank {
+  width: 28px; text-align: center; font-weight: 700; font-size: 13.5px; color: var(--muted); flex-shrink: 0;
+}
+.lb-rank.top1 { color: #ffd866; font-size: 17px; }
+.lb-rank.top2 { color: #c7ccd6; font-size: 15px; }
+.lb-rank.top3 { color: #cd8a4f; font-size: 15px; }
+.lb-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--border); }
+.lb-info { flex: 1; min-width: 0; }
+.lb-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-region { font-size: 10.5px; color: var(--muted); }
+.lb-score { font-size: 14px; font-weight: 700; color: var(--gold); flex-shrink: 0; }
+.lb-score-unit { font-size: 10px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+
+.lb-me-banner {
+  margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--muted); padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.lb-me-banner strong { color: var(--gold); }
+
+/* ---------- Toast (achievement unlocked) ---------- */
+#achievement-toast {
+  position: fixed; top: 24px; right: 24px; z-index: 1200;
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #1c2e1c, #142414);
+  border: 1px solid var(--gold);
+  border-radius: var(--r-md);
+  padding: 14px 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  transform: translateX(120%);
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 300px;
+}
+#achievement-toast.show { transform: translateX(0); }
+.toast-icon {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  background: linear-gradient(150deg, #ffd866, #eaaf11);
+  box-shadow: 0 0 0 3px rgba(234,175,17,0.2);
+}
+.toast-title { font-size: 11px; color: var(--gold); font-weight: 600; }
+.toast-name { font-size: 13.5px; font-weight: 700; margin-top: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-hex.tier-gold::after, .badge-hex.tier-emerald::after,
+  .badge-hex.tier-new, #achievement-toast, .season-ring-fill { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 880px) {
+  .dash-wrap { grid-template-columns: 1fr; }
+  .left-panel { position: static; }
+  .season-ring-card { flex-direction: column; text-align: center; }
+  .overview-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 420px) {
+  .badge-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+}
+
+/* ============================================================
+   EXPORT BUTTONS (เสริม) — PDF / รูปภาพ ในผล modal
+   ============================================================ */
+.modal-header {
+  position: relative;
+}
+#btn-export-pdf:hover {
+  background: var(--gold-soft) !important;
+  border-color: var(--gold) !important;
+  transform: translateY(-1px);
+}
+#btn-export-image:hover {
+  background: var(--green-soft) !important;
+  border-color: var(--green) !important;
+  transform: translateY(-1px);
+}
+#btn-export-pdf, #btn-export-image {
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, opacity 0.2s;
+}
+#export-btn-group { transition: opacity 0.2s; }
+
+#modal-close-btn:hover {
+  background: var(--danger) !important;
+  color: var(--text) !important;
+}
+
+/* ============================================================
+   PAGE-LOAD POLISH — การ์ดใน dashboard ค่อยๆ ปรากฏแบบมีลำดับ
+   ============================================================ */
+.dash-wrap.active .left-panel,
+.dash-wrap.active .right-panel > * {
+  animation: cardRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.dash-wrap.active .left-panel { animation-delay: 0s; }
+.dash-wrap.active .right-panel > *:nth-child(1) { animation-delay: 0.05s; }
+.dash-wrap.active .right-panel > *:nth-child(2) { animation-delay: 0.1s; }
+.dash-wrap.active .right-panel > *:nth-child(3) { animation-delay: 0.15s; }
+.dash-wrap.active .right-panel > *:nth-child(4) { animation-delay: 0.2s; }
+.dash-wrap.active .right-panel > *:nth-child(5) { animation-delay: 0.25s; }
+.dash-wrap.active .right-panel > *:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-wrap.active .left-panel,
+  .dash-wrap.active .right-panel > * {
+    animation: none !important;
+  }
+}

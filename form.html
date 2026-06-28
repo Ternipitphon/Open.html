@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFuture AI — ที่ปรึกษาการเกษตร</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://kit.fontawesome.com/9113c5e4dd.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="form.css">
+</head>
+<body>
+
+    <div class="video-bg">
+        <video autoplay loop muted playsinline>
+            <source src="video/YTDown_YouTube_Media_D2wT35xqGRQ_001_1080p.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <header class="top-bar">
+        <div class="logo-wrap">
+            <img src="img/logo.png" alt="AgriFuture Logo">
+            <span class="logo-text">AgriFuture <span>AI</span></span>
+        </div>
+        <span class="nav-welcome">Welcome</span>
+        <div class="nav-user">
+            <a href="Chatai.html" class="chat-nav-btn" title="ไปหน้า AI Chat">
+                <i class="fa-solid fa-comments"></i>
+                <span>AI Chat</span>
+            </a>
+            <a href="profile.html" class="login-btn" id="login-trigger">
+                <i class="fa-regular fa-circle-user"></i>
+                <span>Login / เข้าสู่ระบบ</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="page">
+
+        <div class="hero">
+            <div class="hero-eyebrow"><i class="fa-solid fa-seedling"></i> ระบบแนะนำการเกษตร</div>
+            <h1>ปลูกอะไรดี? <span>AI ช่วยคุณได้</span></h1>
+            <p>กรอกข้อมูลพื้นที่และความต้องการของคุณ เพื่อรับคำแนะนำพืชที่เหมาะสมที่สุด</p>
+
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="num">1,200<span class="plus">+</span></span>
+                    <span class="label">แปลงที่วิเคราะห์แล้ว</span>
+                </div>
+                <div class="stat">
+                    <span class="num">38</span>
+                    <span class="label">ชนิดพืชที่รองรับ</span>
+                </div>
+                <div class="stat">
+                    <span class="num">95<span class="plus">%</span></span>
+                    <span class="label">ความแม่นยำของคำแนะนำ</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+
+            <!-- Step indicator -->
+            <div class="step-track">
+                <button type="button" class="step-dot active" data-step="1">
+                    <span class="dot-num">1</span>
+                    <span class="dot-label">พื้นที่ &amp; น้ำ</span>
+                </button>
+                <span class="step-line"></span>
+                <button type="button" class="step-dot" data-step="2">
+                    <span class="dot-num">2</span>
+                    <span class="dot-label">งบ &amp; ช่วงเวลา</span>
+                </button>
+                <span class="step-line"></span>
+                <button type="button" class="step-dot" data-step="3">
+                    <span class="dot-num">3</span>
+                    <span class="dot-label">เลือกพืช</span>
+                </button>
+            </div>
+
+            <form id="agri-form">
+
+                <!-- STEP 1 — พื้นที่ & น้ำ -->
+                <section class="form-step active" data-step="1">
+                    <div class="form-card-title"><i class="fa-solid fa-map-location-dot" style="color:var(--yellow)"></i> ที่ตั้งแปลงปลูก</div>
+
+                    <button type="button" id="geo-btn" class="geo-btn">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        ใช้ตำแหน่งปัจจุบันของฉัน
+                    </button>
+                    <p class="geo-status" id="geo-status"></p>
+
+                    <div class="fields-grid">
+                        <div class="field">
+                            <label><i class="fa-solid fa-location-dot"></i> จังหวัด</label>
+                            <input type="text" name="province" id="sel-province" placeholder="เช่น ระยอง, เชียงใหม่" required>
+                        </div>
+
+                        <div class="field">
+                            <label><i class="fa-solid fa-map-pin"></i> อำเภอ</label>
+                            <input type="text" name="district" id="sel-district" placeholder="เช่น ปลวกแดง, เมือง" required>
+                        </div>
+
+                        <div class="field">
+                            <label><i class="fa-solid fa-droplet"></i> แหล่งน้ำ</label>
+                            <input type="text" name="water_source" id="sel-water" placeholder="เช่น น้ำฝน, ชลประทาน, บ่อน้ำ" required>
+                        </div>
+
+                        <div class="field area-field">
+                            <label><i class="fa-solid fa-expand"></i> ขนาดพื้นที่</label>
+                            <div class="combo-input">
+                                <input type="number" min="0" step="0.1" name="area_value" id="sel-area-value" placeholder="เช่น 5" required>
+                                <select name="area_unit" id="sel-area-unit">
+                                    <option value="ไร่">ไร่</option>
+                                    <option value="งาน">งาน</option>
+                                    <option value="ตร.ม.">ตร.ม.</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="weather-preview" id="weather-preview" hidden>
+                        <i class="fa-solid fa-cloud-sun"></i>
+                        <span id="weather-text">กำลังตรวจสอบสภาพอากาศของพื้นที่...</span>
+                    </div>
+
+                    <div class="step-nav">
+                        <span></span>
+                        <button type="button" class="btn-next" data-goto="2">ต่อไป <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                </section>
+
+                <!-- STEP 2 — งบ & ช่วงเวลา -->
+                <section class="form-step" data-step="2">
+                    <div class="form-card-title"><i class="fa-solid fa-wallet" style="color:var(--yellow)"></i> งบประมาณและช่วงเวลา</div>
+
+                    <div class="field budget-field">
+                        <label><i class="fa-solid fa-coins"></i> งบประมาณเริ่มต้น</label>
+                        <div class="budget-row">
+                            <input type="range" id="budget-slider" min="1000" max="500000" step="1000" value="15000">
+                            <div class="budget-amount">
+                                <span>฿</span>
+                                <input type="number" id="sel-budget" name="budget" min="0" step="500" value="15000" required>
+                            </div>
+                        </div>
+                        <div class="budget-ticks">
+                            <span>1,000</span><span>500,000+</span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label><i class="fa-solid fa-calendar-days"></i> เดือนที่เริ่มปลูก</label>
+                        <select name="planting_month" id="sel-month" required>
+                            <option value="" disabled selected>— เลือกเดือน —</option>
+                            <option value="มกราคม">มกราคม</option>
+                            <option value="กุมภาพันธ์">กุมภาพันธ์</option>
+                            <option value="มีนาคม">มีนาคม</option>
+                            <option value="เมษายน">เมษายน</option>
+                            <option value="พฤษภาคม">พฤษภาคม</option>
+                            <option value="มิถุนายน">มิถุนายน</option>
+                            <option value="กรกฎาคม">กรกฎาคม</option>
+                            <option value="สิงหาคม">สิงหาคม</option>
+                            <option value="กันยายน">กันยายน</option>
+                            <option value="ตุลาคม">ตุลาคม</option>
+                            <option value="พฤศจิกายน">พฤศจิกายน</option>
+                            <option value="ธันวาคม">ธันวาคม</option>
+                        </select>
+                    </div>
+
+                    <div class="step-nav">
+                        <button type="button" class="btn-back" data-goto="1"><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
+                        <button type="button" class="btn-next" data-goto="3">ต่อไป <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                </section>
+
+                <!-- STEP 3 — เลือกพืช -->
+                <section class="form-step" data-step="3">
+                    <div class="form-card-title"><i class="fa-solid fa-leaf" style="color:var(--yellow)"></i> พืชที่สนใจจะปลูก</div>
+                    <p class="step-hint">ค้นหาหรือแตะเพื่อเลือกพืชที่สนใจ (เลือกได้ 1 ชนิด) — ถ้าไม่เจอ พิมพ์ชื่อพืชเองได้ในช่องด้านล่าง</p>
+
+                    <div class="crop-search-wrap">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="crop-search" placeholder="ค้นหาพืช เช่น มะม่วง, ทุเรียน..." autocomplete="off">
+                        <button type="button" id="crop-search-clear" class="crop-search-clear" hidden>
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="crop-grid" id="crop-grid">
+                        <!-- generated by JS -->
+                    </div>
+                    <p class="crop-empty" id="crop-empty" hidden>ไม่พบพืชที่ค้นหา — พิมพ์ชื่อพืชเองในช่องด้านล่างได้เลย</p>
+
+                    <div class="crop-custom-divider"><span>หรือ</span></div>
+
+                    <div class="field crop-custom-field">
+                        <label><i class="fa-solid fa-pen"></i> ไม่เจอพืชที่ต้องการ? พิมพ์ชื่อพืชเอง</label>
+                        <input type="text" id="crop-custom" placeholder="พิมพ์ชื่อพืชที่ต้องการปลูก เช่น เมล่อน, ข้าวโพด">
+                    </div>
+
+                    <select name="interested_crop" id="sel-crop" required hidden>
+                        <option value="" disabled selected>— เลือกพืช —</option>
+                    </select>
+
+                    <div class="step-nav">
+                        <button type="button" class="btn-back" data-goto="2"><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
+                        <button type="submit" class="btn-submit" id="submit-btn">
+                            <i class="fa-solid fa-seedling"></i>
+                            <span>วิเคราะห์และแนะนำพืชที่เหมาะสม</span>
+                        </button>
+                    </div>
+                </section>
+
+            </form>
+
+            <p class="form-footer">ข้อมูลของคุณจะถูกนำไปประมวลผลด้วย AI เพื่อให้คำแนะนำที่แม่นยำที่สุด</p>
+        </div>
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey:            "AIzaSyClThtgfsR00SuM3lgM2HOP9175b6FnkYc",
+            authDomain:        "agrifuture-ai-5ade9.firebaseapp.com",
+            projectId:         "agrifuture-ai-5ade9",
+            storageBucket:     "agrifuture-ai-5ade9.firebasestorage.app",
+            messagingSenderId: "634181270751",
+            appId:             "1:634181270751:web:2a9efbb05bd90839853d6a",
+            measurementId:     "G-32C33BG9YX"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    </script>
+
+    <script>
+    /* ===================================================
+       ข้อมูลพืช: ชื่อ + ไอคอน FontAwesome (แทนรูปภาพจริง)
+       =================================================== */
+    const CROPS = [
+        { name: "มะม่วง", icon: "fa-mango" === "" ? "fa-lemon" : "fa-lemon" }, // placeholder fallback
+    ];
+
+    // รายการพืชจริง พร้อมไอคอนที่ใกล้เคียงที่สุดใน FontAwesome (ชุดฟรีไม่มีไอคอนผลไม้ครบทุกชนิด
+    // จึงใช้ fa-leaf / fa-apple-whole / fa-lemon / fa-carrot / fa-seedling สลับกันตามหมวด)
+    const CROP_LIST = [
+        { name: "มะม่วง",        icon: "fa-apple-whole" },
+        { name: "มะละกอ",        icon: "fa-lemon" },
+        { name: "กล้วย",          icon: "fa-seedling" },
+        { name: "กล้วยน้ำว้า",     icon: "fa-seedling" },
+        { name: "กล้วยหอม",       icon: "fa-seedling" },
+        { name: "กล้วยไข่",       icon: "fa-seedling" },
+        { name: "สับปะรด",        icon: "fa-leaf" },
+        { name: "ทุเรียน",        icon: "fa-apple-whole" },
+        { name: "เงาะ",           icon: "fa-apple-whole" },
+        { name: "ลำไย",           icon: "fa-apple-whole" },
+        { name: "ลิ้นจี่",         icon: "fa-apple-whole" },
+        { name: "มังคุด",         icon: "fa-apple-whole" },
+        { name: "ส้ม",            icon: "fa-lemon" },
+        { name: "ส้มโอ",          icon: "fa-lemon" },
+        { name: "มะนาว",         icon: "fa-lemon" },
+        { name: "มะขาม",         icon: "fa-leaf" },
+        { name: "มะพร้าว",       icon: "fa-tree" },
+        { name: "แตงโม",         icon: "fa-leaf" },
+        { name: "แตงไทย",        icon: "fa-leaf" },
+        { name: "แก้วมังกร",      icon: "fa-leaf" },
+        { name: "ฝรั่ง",          icon: "fa-apple-whole" },
+        { name: "ชมพู่",          icon: "fa-apple-whole" },
+        { name: "พุทรา",         icon: "fa-apple-whole" },
+        { name: "น้อยหน่า",       icon: "fa-apple-whole" },
+        { name: "กระท้อน",       icon: "fa-apple-whole" },
+        { name: "มะเฟือง",       icon: "fa-apple-whole" },
+        { name: "มะปราง",        icon: "fa-apple-whole" },
+        { name: "องุ่น",          icon: "fa-leaf" },
+        { name: "สตรอเบอร์รี่",   icon: "fa-leaf" },
+        { name: "อะโวคาโด",      icon: "fa-apple-whole" },
+        { name: "ขนุน",          icon: "fa-apple-whole" },
+        { name: "เสาวรส",        icon: "fa-leaf" },
+        { name: "แคนตาลูป",      icon: "fa-leaf" },
+        { name: "มะรุม",          icon: "fa-tree" },
+        { name: "ละมุด",          icon: "fa-apple-whole" },
+        { name: "มะขามป้อม",     icon: "fa-leaf" },
+        { name: "โกโก้",          icon: "fa-seedling" },
+        { name: "กาแฟ",          icon: "fa-mug-hot" }
+    ];
+
+    const gridEl    = document.getElementById('crop-grid');
+    const selCrop   = document.getElementById('sel-crop');
+    const searchInput = document.getElementById('crop-search');
+    const searchClear = document.getElementById('crop-search-clear');
+    const cropEmpty    = document.getElementById('crop-empty');
+    const customInput  = document.getElementById('crop-custom');
+
+    function renderCrops(filter = '') {
+        gridEl.innerHTML = '';
+        const q = filter.trim().toLowerCase();
+        const filtered = CROP_LIST.filter(c => c.name.toLowerCase().includes(q));
+
+        filtered.forEach(crop => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'crop-card';
+            card.dataset.value = crop.name;
+            if (selCrop.value === crop.name) card.classList.add('selected');
+            card.innerHTML = `<i class="fa-solid ${crop.icon}"></i><span>${crop.name}</span>`;
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.crop-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selCrop.value = crop.name;
+                // เลือกจากลิสต์แล้ว ให้ล้างช่องพิมพ์เอง เพื่อไม่ให้ขัดแย้งกัน
+                customInput.value = '';
+            });
+            gridEl.appendChild(card);
+        });
+
+        cropEmpty.hidden = filtered.length !== 0;
+    }
+
+    // เติม select เดิม (สำหรับ submit ฟอร์ม) ด้วยรายชื่อทั้งหมดล่วงหน้า
+    CROP_LIST.forEach(crop => {
+        const opt = document.createElement('option');
+        opt.value = crop.name;
+        opt.textContent = crop.name;
+        selCrop.appendChild(opt);
+    });
+
+    renderCrops();
+
+    searchInput.addEventListener('input', () => {
+        searchClear.hidden = searchInput.value.length === 0;
+        renderCrops(searchInput.value);
+    });
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.hidden = true;
+        renderCrops();
+        searchInput.focus();
+    });
+
+    // ช่องพิมพ์พืชเอง: ถ้าพิมพ์ ให้ถือเป็นค่าที่เลือก และยกเลิกการเลือกจากการ์ด
+    customInput.addEventListener('input', () => {
+        const val = customInput.value.trim();
+        if (val) {
+            document.querySelectorAll('.crop-card').forEach(c => c.classList.remove('selected'));
+            // ถ้าค่าที่พิมพ์ยังไม่มีใน select ให้เพิ่ม option ใหม่ชั่วคราว
+            let existing = Array.from(selCrop.options).find(o => o.value === val);
+            if (!existing) {
+                existing = document.createElement('option');
+                existing.value = val;
+                existing.textContent = val;
+                existing.dataset.custom = 'true';
+                selCrop.appendChild(existing);
+            }
+            selCrop.value = val;
+        }
+    });
+
+    /* ===================================================
+       Step navigation
+       =================================================== */
+    const steps = document.querySelectorAll('.form-step');
+    const dots  = document.querySelectorAll('.step-dot');
+
+    function goToStep(n) {
+        steps.forEach(s => s.classList.toggle('active', s.dataset.step === String(n)));
+        dots.forEach(d => {
+            d.classList.toggle('active', d.dataset.step === String(n));
+            d.classList.toggle('done', Number(d.dataset.step) < n);
+        });
+        document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.querySelectorAll('[data-goto]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // ตรวจสอบ required fields ของ step ปัจจุบันก่อนไปต่อ (เฉพาะปุ่ม "ต่อไป")
+            if (btn.classList.contains('btn-next')) {
+                const currentStep = btn.closest('.form-step');
+                const requiredFields = currentStep.querySelectorAll('[required]');
+                for (const f of requiredFields) {
+                    if (!f.value) {
+                        f.focus();
+                        f.classList.add('field-error');
+                        setTimeout(() => f.classList.remove('field-error'), 1200);
+                        return;
+                    }
+                }
+            }
+            goToStep(btn.dataset.goto);
+        });
+    });
+
+    dots.forEach(dot => {
+        dot.addEventListener('click', () => goToStep(dot.dataset.step));
+    });
+
+    /* ===================================================
+       Budget slider <-> number input sync
+       =================================================== */
+    const budgetSlider = document.getElementById('budget-slider');
+    const budgetInput  = document.getElementById('sel-budget');
+
+    budgetSlider.addEventListener('input', () => budgetInput.value = budgetSlider.value);
+    budgetInput.addEventListener('input', () => {
+        const v = Number(budgetInput.value) || 0;
+        budgetSlider.value = Math.min(Math.max(v, budgetSlider.min), budgetSlider.max);
+    });
+
+    /* ===================================================
+       Geolocation -> reverse geocode (จังหวัด/อำเภอ)
+       =================================================== */
+    const geoBtn    = document.getElementById('geo-btn');
+    const geoStatus = document.getElementById('geo-status');
+    const weatherPreview = document.getElementById('weather-preview');
+    const weatherText     = document.getElementById('weather-text');
+
+    geoBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            geoStatus.textContent = 'เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง';
+            geoStatus.classList.add('error');
+            return;
+        }
+        geoBtn.disabled = true;
+        geoStatus.textContent = 'กำลังค้นหาตำแหน่งของคุณ...';
+        geoStatus.classList.remove('error');
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=th`);
+                const data = await res.json();
+                const addr = data.address || {};
+                const province = addr.province || addr.state || '';
+                const district = addr.county || addr.city || addr.town || addr.suburb || '';
+
+                if (province) document.getElementById('sel-province').value = province.replace('จังหวัด', '').trim();
+                if (district) document.getElementById('sel-district').value = district.replace('อำเภอ', '').trim();
+
+                geoStatus.textContent = 'ระบุตำแหน่งสำเร็จ — ตรวจสอบความถูกต้องอีกครั้งก่อนกดต่อไป';
+                weatherPreview.hidden = false;
+                weatherText.textContent = `พื้นที่นี้: ${province || '-'} ${district || ''} (เชื่อมข้อมูลสภาพอากาศได้ที่ backend)`;
+            } catch (err) {
+                geoStatus.textContent = 'ไม่สามารถระบุจังหวัด/อำเภอได้ กรุณากรอกเอง';
+                geoStatus.classList.add('error');
+            } finally {
+                geoBtn.disabled = false;
+            }
+        }, () => {
+            geoStatus.textContent = 'ไม่สามารถเข้าถึงตำแหน่งได้ กรุณากรอกข้อมูลเอง';
+            geoStatus.classList.add('error');
+            geoBtn.disabled = false;
+        });
+    });
+
+    /* ===================================================
+       Submit ฟอร์ม
+       =================================================== */
+    document.getElementById('agri-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const province        = document.getElementById('sel-province').value.trim();
+        const district         = document.getElementById('sel-district').value.trim();
+        const areaValue        = document.getElementById('sel-area-value').value.trim();
+        const areaUnit         = document.getElementById('sel-area-unit').value;
+        const water_source     = document.getElementById('sel-water').value.trim();
+        const budget           = document.getElementById('sel-budget').value.trim();
+        const planting_month   = document.getElementById('sel-month').value;
+        const interested_crop  = selCrop.value;
+
+        if (!province || !district || !budget || !areaValue || !water_source || !planting_month || !interested_crop) {
+            alert('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+            return;
+        }
+
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+        submitBtn.querySelector('span').textContent = 'กำลังวิเคราะห์...';
+
+        const params = new URLSearchParams({
+            province, district,
+            budget,
+            area: `${areaValue} ${areaUnit}`,
+            water_source, planting_month, interested_crop
+        });
+
+        window.location.href = 'result.html?' + params.toString();
+    });
+    </script>
+
+    <script type="module" src="profile.js"></script>
+    <script src="nav-auth.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
    AgriFuture AI — Chat JS  v2.0
    ══════════════════════════════════════════ */
 
-const API_URL = 'http://localhost:5000/chat';
+const API_URL = 'https://open-html.onrender.com/chat';
 const MAX_CHARS = 2000;
 
 /* ── DOM refs ── */
@@ -27,7 +27,7 @@ const toastMsg      = document.getElementById('toastMsg');
 /* ── State ── */
 let conversationHistory = [];
 let chatSessions        = JSON.parse(localStorage.getItem('agri_chat_sessions') || '[]');
-let lastAIBubble        = null; // for regenerate
+let lastAIBubble        = null;
 let toastTimer          = null;
 
 /* ══════════════════════════════════════════
@@ -70,18 +70,15 @@ scrollBtn.addEventListener('click', scrollToBottom);
    INPUT CONTROLS
    ══════════════════════════════════════════ */
 chatInput.addEventListener('input', () => {
-    // auto-resize
     chatInput.style.height = 'auto';
     chatInput.style.height = Math.min(chatInput.scrollHeight, 140) + 'px';
 
-    // char counter
     const len = chatInput.value.length;
     charCounter.textContent = `${len} / ${MAX_CHARS}`;
     charCounter.className = 'char-counter';
     if (len > MAX_CHARS * 0.85) charCounter.classList.add('warn');
     if (len >= MAX_CHARS)        charCounter.classList.add('over');
 
-    // clear-x button
     clearInputBtn.classList.toggle('visible', len > 0);
 });
 
@@ -115,14 +112,11 @@ clearChatBtn.addEventListener('click', () => {
 function resetChat() {
     conversationHistory = [];
     lastAIBubble = null;
-    // Remove all msg-rows
     Array.from(messagesArea.querySelectorAll('.msg-row')).forEach(el => el.remove());
-    // Show welcome
     welcomeState.style.display = 'flex';
     document.getElementById('chatTitle').textContent = 'AgriFuture AI Chat';
 }
 
-/* ── New Chat ── */
 newChatBtn.addEventListener('click', () => {
     resetChat();
     chatInput.value = '';
@@ -186,7 +180,7 @@ async function handleSend() {
 
     } catch (err) {
         removeTyping(typingId);
-        showWarning('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่า Python backend กำลังทำงานอยู่');
+        showWarning('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
         console.error(err);
     }
 
@@ -199,7 +193,6 @@ async function handleSend() {
    ══════════════════════════════════════════ */
 async function regenerateLastResponse() {
     if (sendBtn.disabled) return;
-    // Remove last AI message from UI and history
     if (lastAIBubble) {
         lastAIBubble.remove();
         lastAIBubble = null;
@@ -246,7 +239,6 @@ function appendMessage(role, text) {
     const row = document.createElement('div');
     row.className = `msg-row ${role}`;
 
-    // Avatar
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     if (role === 'ai') {
@@ -260,16 +252,13 @@ function appendMessage(role, text) {
         }
     }
 
-    // Content wrapper
     const content = document.createElement('div');
     content.className = 'msg-content';
 
-    // Bubble
     const bubble = document.createElement('div');
     bubble.className = 'msg-bubble';
     bubble.innerHTML = formatMarkdown(text);
 
-    // Wrap code blocks with copy buttons
     bubble.querySelectorAll('pre').forEach(pre => {
         const wrap = document.createElement('div');
         wrap.className = 'code-block-wrap';
@@ -287,12 +276,10 @@ function appendMessage(role, text) {
         wrap.appendChild(copyBtn);
     });
 
-    // Meta row (time + actions)
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
     meta.innerHTML = `<span class="msg-time">${timeStr}</span>`;
 
-    // Copy button
     const copyBtn = document.createElement('button');
     copyBtn.className = 'msg-action-btn';
     copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> คัดลอก';
@@ -309,7 +296,6 @@ function appendMessage(role, text) {
     });
     meta.appendChild(copyBtn);
 
-    // Regenerate button (AI only)
     if (role === 'ai') {
         const regenBtn = document.createElement('button');
         regenBtn.className = 'msg-action-btn';
@@ -325,7 +311,7 @@ function appendMessage(role, text) {
     messagesArea.appendChild(row);
     scrollToBottom();
 
-    return row; // return reference for regenerate
+    return row;
 }
 
 /* ══════════════════════════════════════════
@@ -376,53 +362,35 @@ function showWarning(msg) {
    MARKDOWN FORMATTER
    ══════════════════════════════════════════ */
 function formatMarkdown(text) {
-    // Escape HTML first
     let s = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 
-    // Code blocks (``` lang\n...```)
     s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
         `<pre><code class="lang-${lang}">${code.trim()}</code></pre>`
     );
-
-    // Inline code
     s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Headings
     s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     s = s.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
     s = s.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
-
-    // Bold & italic
     s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
     s = s.replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>');
     s = s.replace(/\*(.+?)\*/g,         '<em>$1</em>');
-
-    // Blockquote
     s = s.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-
-    // Horizontal rule
     s = s.replace(/^---$/gm, '<hr>');
-
-    // Unordered list
     s = s.replace(/(^[*\-] .+(\n|$))+/gm, match => {
         const items = match.trim().split('\n').map(l =>
             `<li>${l.replace(/^[*\-] /, '')}</li>`
         ).join('');
         return `<ul>${items}</ul>`;
     });
-
-    // Ordered list
     s = s.replace(/(^\d+\. .+(\n|$))+/gm, match => {
         const items = match.trim().split('\n').map(l =>
             `<li>${l.replace(/^\d+\. /, '')}</li>`
         ).join('');
         return `<ol>${items}</ol>`;
     });
-
-    // Simple table (| a | b | c |)
     s = s.replace(/(^\|.+\|\n)(^\|[-| :]+\|\n)((?:^\|.+\|\n?)+)/gm, (_, header, sep, body) => {
         const parseRow = row => row.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
         const heads = parseRow(header).map(h => `<th>${h}</th>`).join('');
@@ -431,11 +399,7 @@ function formatMarkdown(text) {
         ).join('');
         return `<table><thead><tr>${heads}</tr></thead><tbody>${rows}</tbody></table>`;
     });
-
-    // Links
     s = s.replace(/\[(.+?)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-
-    // Line breaks (only outside block elements)
     s = s.replace(/\n(?!<\/?(ul|ol|li|h[1-3]|pre|table|thead|tbody|tr|th|td|blockquote|hr))/g, '<br>');
 
     return s;
@@ -509,7 +473,6 @@ function renderHistory(filter = '') {
             showToast('ลบประวัติแล้ว', 'fa-solid fa-trash-can');
         });
         item.addEventListener('click', () => {
-            // Clicking history just sets the title (full restore would need stored messages)
             document.getElementById('chatTitle').textContent = session.title;
             if (window.innerWidth <= 768) sidebar.classList.remove('open');
         });

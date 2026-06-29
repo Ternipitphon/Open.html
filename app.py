@@ -9,23 +9,18 @@ from dotenv import load_dotenv
 load_dotenv()
 app = Flask(__name__)
 
-# อนุญาต CORS สำหรับทุกโดเมนและรองรับ Content-Type: application/json ข้ามโดเมนได้ 100%
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# กำหนด API Key ของ Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# เสิร์ฟหน้า HTML หลัก
 @app.route('/')
 def index():
     return send_from_directory('.', 'Open.html')
 
-# เสิร์ฟไฟล์ static ทั้งหมด (CSS, JS, รูปภาพ, วิดีโอ)
 @app.route('/<path:filename>')
 def static_files(filename):
     return send_from_directory('.', filename)
 
-# ฟังก์ชันช่วยลองใหม่หากติด Rate Limit (429) ด้วยวิธี Exponential Backoff
 def generate_content_with_retry(model, prompt, retries=5, backoff_in_seconds=2):
     for i in range(retries):
         try:
@@ -36,13 +31,44 @@ def generate_content_with_retry(model, prompt, retries=5, backoff_in_seconds=2):
                 continue
             raise e
 
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.json
+        messages = data.get('messages', [])
+        if not messages:
+            return jsonify({"error": "ไม่พบข้อความ"}), 400
+
+        user_message = messages[-1].get('content', '')
+        if not user_message:
+            return jsonify({"error": "ข้อความว่างเปล่า"}), 400
+
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction="""คุณคือ AgriFuture AI ผู้ช่วยด้านการเกษตรอัจฉริยะสำหรับเกษตรกรไทย
+ตอบได้เฉพาะเรื่องต่อไปนี้เท่านั้น:
+1. การเกษตรทั่วไป เช่น การปลูกพืช การเลี้ยงสัตว์ การจัดการดิน ปุ๋ย ยาฆ่าแมลง
+2. เทคโนโลยีการเกษตร เช่น Smart Farm, IoT, โดรนเกษตร
+3. ข่าวสารและราคาพืชผล
+หากถามนอกเหนือจากนี้ ให้ตอบสุภาพว่าตอบได้เฉพาะเรื่องการเกษตรเท่านั้น
+ตอบเป็นภาษาไทยเสมอ ชัดเจน และเป็นประโยชน์""",
+            generation_config={"temperature": 0.7}
+        )
+
+        response = generate_content_with_retry(model, user_message)
+        reply = response.text.strip()
+        return jsonify({"reply": reply, "status": "success"})
+
+    except Exception as e:
+        return jsonify({"error": f"ระบบขัดข้อง: {str(e)}"}), 500
+
 @app.route('/api/analyze', methods=['POST'])
 def analyze_crop():
     try:
         data = request.json
         if not data:
             return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบข้อมูลที่ส่งมาจากหน้าบ้าน (Body ว่างเปล่า)"}), 400
-        
+
         province        = data.get('province', '')
         district        = data.get('district', '')
         budget          = data.get('budget', '')
@@ -55,7 +81,7 @@ def analyze_crop():
             return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบข้อมูลชื่อพืชที่สนใจส่งมาวิเคราะห์"}), 400
 
         if not os.environ.get("GEMINI_API_KEY"):
-            return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบ GEMINI_API_KEY กรุณาตั้งค่าในไฟล์ .env"}), 500
+            return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบ GEMINI_API_KEY"}), 500
 
         prompt = f"""
 คุณคือ AI ผู้เชี่ยวชาญด้านการเกษตรอัจฉริยะ (AgriFuture AI)
@@ -108,7 +134,7 @@ def analyze_crop():
   "warning": "คำเตือนวิกฤตที่ต้องเฝ้าระวังเป็นพิเศษ ถ้าไม่มีให้ระบุเป็นสตริงว่าง"
 }}
 """
-        
+
         model = genai.GenerativeModel(
             "gemini-2.5-flash",
             generation_config={
@@ -116,32 +142,26 @@ def analyze_crop():
                 "response_mime_type": "application/json"
             }
         )
-        
+
         response = generate_content_with_retry(model, prompt)
         raw_text = response.text.strip()
-        
+
         if raw_text.startswith("```json"):
             raw_text = raw_text.split("```json")[1].split("```")[0].strip()
         elif raw_text.startswith("```"):
             raw_text = raw_text.split("```")[1].split("```")[0].strip()
-            
+
         ai_result = json.loads(raw_text)
         return jsonify({
-            "success": True, 
+            "success": True,
             "data": ai_result,
             "backend_signature": "AgriFuture-Gemini-v2"
         })
 
     except json.JSONDecodeError as e:
-        return jsonify({
-            "success": False, 
-            "error": f"[AgriFuture-Backend] AI ประมวลผลข้อมูลกลับมาคลาดเคลื่อนจากโครงสร้างมาตรฐาน: {str(e)}"
-        }), 500
+        return jsonify({"success": False, "error": f"[AgriFuture-Backend] AI ประมวลผลข้อมูลกลับมาคลาดเคลื่อน: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({
-            "success": False, 
-            "error": f"[AgriFuture-Backend] ระบบเกิดข้อผิดพลาดในการประมวลผล: {str(e)}"
-        }), 500
+        return jsonify({"success": False, "error": f"[AgriFuture-Backend] ระบบเกิดข้อผิดพลาด: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5001)), debug=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False)

@@ -263,6 +263,7 @@
 const firebaseConfig = {
   apiKey: "AIzaSyClThtgfsR00SuM3lgM2HOP9175b6FnkYc",
   authDomain: "agrifuture-ai-5ade9.firebaseapp.com",
+  databaseURL: "https://agrifuture-ai-5ade9-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "agrifuture-ai-5ade9",
   storageBucket: "agrifuture-ai-5ade9.firebasestorage.app",
   messagingSenderId: "634181270751",
@@ -280,7 +281,7 @@ import { getFirestore, collection, doc,
          where, orderBy, serverTimestamp,
          onSnapshot }                            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getDatabase, ref, push, onValue,
-         set, off }                              from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+         set, update, get, off }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app     = initializeApp(firebaseConfig);
 const auth    = getAuth(app);
@@ -299,7 +300,7 @@ let shopAvatarFile = null;
 let shopAvatarURL  = null;
 let shopBgFile = null;
 let shopBgURL  = null;
-let currentChatTarget = null;
+let currentChatTarget = null; // { shopId, buyerUid }
 let currentView   = 'home';
 let prevView      = 'home';
 let currentFilterCat = 'ทั้งหมด';
@@ -356,6 +357,7 @@ window.loginWithGoogle = async function() {
 window.logout = function() {
   openConfirm('logout','ออกจากระบบ','ต้องการออกจากระบบใช่ไหม?', async () => {
     if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+    currentChatTarget = null;
     await signOut(auth);
     cartItems = [];
     localStorage.removeItem('agri_cart');
@@ -939,8 +941,17 @@ window.confirmDeleteShop = function(sid) {
   }, 'ลบร้านค้า');
 };
 
-function convId(shopId) {
-  return [currentUser.uid, shopId].sort().join('_');
+/* ═══════════════════════════════════════════
+   CHAT (สองทาง ผู้ซื้อ ⇆ ผู้ขาย ผ่าน Firebase Realtime Database)
+   convId = `${shopId}__${buyerUid}` — คงที่เสมอสำหรับคู่สนทนา (ร้านนี้ + ผู้ซื้อคนนี้)
+   chats/{convId}/meta      -> ข้อมูลสรุปการสนทนา (ใช้แสดงในลิสต์)
+   chats/{convId}/messages  -> ข้อความทั้งหมด (เรียลไทม์)
+   userConvos/{uid}/{convId}   -> ดัชนีการสนทนาของ "ผู้ซื้อ" แต่ละคน
+   shopConvos/{shopId}/{convId}-> ดัชนีการสนทนาของ "ร้านค้า" แต่ละร้าน (ให้ผู้ขายดูอินบ็อกซ์)
+═══════════════════════════════════════════ */
+
+function makeConvId(shopId, buyerUid) {
+  return `${shopId}__${buyerUid}`;
 }
 
 window.openChatWith = function(shopId) {
@@ -948,34 +959,96 @@ window.openChatWith = function(shopId) {
   const s = shops.find(x => x.id === shopId);
   if (!s) return;
   if (s.ownerId === currentUser.uid) { showToast('<i class="fa-solid fa-comment-dots"></i> คุณเป็นเจ้าของร้านนี้'); return; }
-  currentChatTarget = shopId;
+  currentChatTarget = { shopId, buyerUid: currentUser.uid };
   showView('chat');
 };
 
-window.renderChat = function() {
-  if (!currentUser) return;
-  const chatListEl = document.getElementById('chatList');
-  chatListEl.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--g2);font-size:.83rem">
-    กดปุ่ม <i class="fa-solid fa-comment-dots"></i> ในสินค้าหรือร้านค้าเพื่อเริ่มแชท
-  </div>`;
-  if (currentChatTarget) openConversation(currentChatTarget);
+window.selectConv = function(shopId, buyerUid) {
+  currentChatTarget = { shopId, buyerUid };
+  openConversation(shopId, buyerUid);
+  document.querySelectorAll('#chatList .chat-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.shop === shopId && el.dataset.buyer === buyerUid);
+  });
 };
 
-function openConversation(shopId) {
-  const s = shops.find(x => x.id === shopId);
-  if (!s) return;
-  document.getElementById('chatHeader').innerHTML = `
-    <div class="chat-header-av">${s.avatar?`<img src="${s.avatar}" alt="${s.name}"/>`:`${s.name.charAt(0)}`}</div>
-    <div>
-      <div class="chat-header-name">${s.name}</div>
-      <div class="chat-header-status"><span class="dot-online"></span>ออนไลน์</div>
+window.renderChat = async function() {
+  if (!currentUser) return;
+  const chatListEl = document.getElementById('chatList');
+  chatListEl.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--g2);font-size:.83rem"><span class="spinner"></span></div>`;
+
+  const myShop = shops.find(s => s.ownerId === currentUser.uid);
+
+  try {
+    const [userSnap, shopSnap] = await Promise.all([
+      get(ref(rtdb, `userConvos/${currentUser.uid}`)),
+      myShop ? get(ref(rtdb, `shopConvos/${myShop.id}`)) : Promise.resolve(null)
+    ]);
+
+    const convIds = new Set();
+    if (userSnap.exists()) Object.keys(userSnap.val()).forEach(id => convIds.add(id));
+    if (shopSnap && shopSnap.exists()) Object.keys(shopSnap.val()).forEach(id => convIds.add(id));
+
+    if (!convIds.size) {
+      chatListEl.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--g2);font-size:.83rem">
+        ยังไม่มีบทสนทนา — กดปุ่ม <i class="fa-solid fa-comment-dots"></i> ที่สินค้าหรือร้านค้าเพื่อเริ่มแชท
+      </div>`;
+    } else {
+      const metaList = await Promise.all([...convIds].map(async id => {
+        const snap = await get(ref(rtdb, `chats/${id}/meta`));
+        return { id, ...(snap.val() || {}) };
+      }));
+      metaList.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
+      chatListEl.innerHTML = metaList.map(m => renderChatListItem(m)).join('');
+    }
+  } catch(e) {
+    chatListEl.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--g2);font-size:.83rem">โหลดรายการสนทนาไม่สำเร็จ</div>`;
+  }
+
+  if (currentChatTarget) {
+    openConversation(currentChatTarget.shopId, currentChatTarget.buyerUid);
+  }
+};
+
+function renderChatListItem(m) {
+  const isMeBuyer = m.buyerUid === currentUser.uid;
+  const displayName = isMeBuyer ? (m.shopName || 'ร้านค้า') : (m.buyerName || 'ผู้ซื้อ');
+  const avatarSrc = isMeBuyer ? m.shopAvatar : m.buyerPhoto;
+  const isActive = currentChatTarget && currentChatTarget.shopId === m.shopId && currentChatTarget.buyerUid === m.buyerUid;
+  return `<div class="chat-item${isActive ? ' active' : ''}" data-shop="${m.shopId}" data-buyer="${m.buyerUid}"
+    style="display:flex;align-items:center;gap:.6rem;padding:.7rem .8rem;cursor:pointer;border-radius:10px;${isActive?'background:rgba(76,175,80,.15)':''}"
+    onclick="selectConv('${m.shopId}','${m.buyerUid}')">
+    <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0">
+      ${avatarSrc ? `<img src="${avatarSrc}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover"/>` : displayName.charAt(0)}
     </div>
-    <div style="margin-left:auto"><button class="nav-btn" onclick="openShop('${shopId}')"><i class="fa-solid fa-store"></i> ดูร้าน</button></div>`;
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayName}${!isMeBuyer?' <span style="font-size:.65rem;color:var(--g2);font-weight:400">(ลูกค้า)</span>':''}</div>
+      <div style="font-size:.75rem;color:var(--g2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.lastMsg||''}</div>
+    </div>
+  </div>`;
+}
+
+function openConversation(shopId, buyerUid) {
+  const s = shops.find(x => x.id === shopId);
+  const convId = makeConvId(shopId, buyerUid);
+  const isMeBuyer = currentUser.uid === buyerUid;
+
+  get(ref(rtdb, `chats/${convId}/meta`)).then(snap => {
+    const meta = snap.val() || {};
+    const otherName = isMeBuyer ? (meta.shopName || (s ? s.name : 'ร้านค้า')) : (meta.buyerName || 'ผู้ซื้อ');
+    const otherAvatarSrc = isMeBuyer ? (meta.shopAvatar || (s ? s.avatar : '')) : meta.buyerPhoto;
+    document.getElementById('chatHeader').innerHTML = `
+      <div class="chat-header-av">${otherAvatarSrc ? `<img src="${otherAvatarSrc}" referrerpolicy="no-referrer"/>` : otherName.charAt(0)}</div>
+      <div>
+        <div class="chat-header-name">${otherName}</div>
+        <div class="chat-header-status"><span class="dot-online"></span>ออนไลน์</div>
+      </div>
+      ${isMeBuyer ? `<div style="margin-left:auto"><button class="nav-btn" onclick="openShop('${shopId}')"><i class="fa-solid fa-store"></i> ดูร้าน</button></div>` : ''}
+    `;
+  });
 
   if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
 
-  const cid = convId(shopId);
-  const msgsRef = ref(rtdb, `chats/${cid}/messages`);
+  const msgsRef = ref(rtdb, `chats/${convId}/messages`);
   const msgsEl = document.getElementById('chatMsgs');
   msgsEl.innerHTML = '';
 
@@ -983,7 +1056,7 @@ function openConversation(shopId) {
     const data = snap.val() || {};
     const msgs = Object.values(data).sort((a,b) => a.ts - b.ts);
     if (!msgs.length) {
-      msgsEl.innerHTML = `<div class="chat-empty"><div><i class="fa-solid fa-comment-dots"></i></div><div>ส่งข้อความเพื่อเริ่มสนทนากับ ${s.name}</div></div>`;
+      msgsEl.innerHTML = `<div class="chat-empty"><div><i class="fa-solid fa-comment-dots"></i></div><div>เริ่มต้นสนทนาได้เลย</div></div>`;
       return;
     }
     msgsEl.innerHTML = msgs.map(m => {
@@ -1001,37 +1074,62 @@ function openConversation(shopId) {
 window.chatKey = function(e) { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMsg(); } };
 
 window.sendMsg = async function() {
-  if (!currentUser||!currentChatTarget) return;
+  if (!currentUser || !currentChatTarget) return;
   const inp = document.getElementById('chatInput');
   const text = inp.value.trim();
   if (!text) return;
-  const cid = convId(currentChatTarget);
+  const { shopId, buyerUid } = currentChatTarget;
+  const convId = makeConvId(shopId, buyerUid);
+  const s = shops.find(x => x.id === shopId);
   inp.value = '';
   try {
-    await push(ref(rtdb, `chats/${cid}/messages`), {
+    await push(ref(rtdb, `chats/${convId}/messages`), {
       senderId: currentUser.uid,
       senderName: currentUser.displayName,
       text,
       ts: Date.now()
     });
-    const s = shops.find(x => x.id === currentChatTarget);
-    if (s) {
-      const replies = [
-        `สวัสดีค่ะ ขอบคุณที่สนใจสินค้าจาก ${s.name} นะคะ`,
-        'สินค้ามีพร้อมส่งค่ะ สั่งได้เลย!',
-        'ราคานี้รวมค่าส่งแล้วนะคะ',
-        'ยินดีให้บริการเสมอค่ะ มีอะไรสอบถามได้เลย',
-      ];
-      setTimeout(async () => {
-        await push(ref(rtdb, `chats/${cid}/messages`), {
-          senderId: s.id,
-          senderName: s.name,
-          text: replies[Math.floor(Math.random()*replies.length)],
-          ts: Date.now()
-        });
-      }, 900 + Math.random()*600);
+
+    // อัปเดตข้อมูลสรุป (meta) ให้ทั้งสองฝ่ายเห็นบทสนทนาล่าสุดในลิสต์
+    const metaUpdate = {
+      shopId,
+      buyerUid,
+      shopName: s ? s.name : '',
+      shopAvatar: (s && s.avatar) || '',
+      lastMsg: text,
+      lastTs: Date.now()
+    };
+    if (currentUser.uid === buyerUid) {
+      metaUpdate.buyerName = currentUser.displayName;
+      metaUpdate.buyerPhoto = currentUser.photoURL || '';
     }
-  } catch(e) { showToast('<i class="fa-solid fa-circle-xmark"></i> ส่งข้อความไม่สำเร็จ','error'); }
+    await update(ref(rtdb, `chats/${convId}/meta`), metaUpdate);
+
+    // ดัชนีให้ผู้ซื้อและร้านค้าเห็นบทสนทนานี้ในลิสต์ของตัวเอง
+    await set(ref(rtdb, `userConvos/${buyerUid}/${convId}`), true);
+    await set(ref(rtdb, `shopConvos/${shopId}/${convId}`), true);
+
+    // รีเฟรชรายการสนทนาฝั่งซ้ายให้เห็นข้อความล่าสุด
+    if (document.getElementById('view-chat').classList.contains('active')) {
+      const chatListEl = document.getElementById('chatList');
+      const myShop = shops.find(sh => sh.ownerId === currentUser.uid);
+      const [userSnap, shopSnap] = await Promise.all([
+        get(ref(rtdb, `userConvos/${currentUser.uid}`)),
+        myShop ? get(ref(rtdb, `shopConvos/${myShop.id}`)) : Promise.resolve(null)
+      ]);
+      const convIds = new Set();
+      if (userSnap.exists()) Object.keys(userSnap.val()).forEach(id => convIds.add(id));
+      if (shopSnap && shopSnap.exists()) Object.keys(shopSnap.val()).forEach(id => convIds.add(id));
+      const metaList = await Promise.all([...convIds].map(async id => {
+        const snap = await get(ref(rtdb, `chats/${id}/meta`));
+        return { id, ...(snap.val() || {}) };
+      }));
+      metaList.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
+      chatListEl.innerHTML = metaList.map(m => renderChatListItem(m)).join('');
+    }
+  } catch(e) {
+    showToast('<i class="fa-solid fa-circle-xmark"></i> ส่งข้อความไม่สำเร็จ: ' + e.message, 'error');
+  }
 };
 
 window.showView = function(v, skipCheck) {

@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriFuture Weather – พยากรณ์อากาศเพื่อการเกษตร</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900: #14300f;
+    --green-800: #1B5E20;
+    --green-700: #2E7D32;
+    --green-600: #388E3C;
+    --green-500: #43A047;
+    --green-400: #66BB6A;
+    --green-300: #81c784;
+    --green-200: #A5D6A7;
+    --green-100: #C8E6C9;
+    --green-50:  #E8F5E9;
+    --yellow-500: #F9A825;
+    --yellow-400: #FBC02D;
+    --yellow-300: #FFD54F;
+    --yellow-200: #FFE082;
+    --yellow-100: #FFF9C4;
+    --cream: #F6F1E4;
+    --white: #FFFFFF;
+    --card-bg: rgba(255,255,255,0.06);
+    --card-border: rgba(249,168,37,0.2);
+    --font-display: 'Sarabun', 'IBM Plex Sans Thai', sans-serif;
+    --font-num: 'Newsreader', 'Sarabun', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  ::selection { background: rgba(249,168,37,0.35); color: var(--white); }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Sarabun', 'IBM Plex Sans Thai', sans-serif;
+    background: var(--green-900);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  svg.icon { display: block; }
+  .icon-inline { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+
+  :focus-visible {
+    outline: 2px solid var(--yellow-400);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* ─── VIDEO BACKGROUND ────────────────────────────────── */
+  .video-bg {
+    position: fixed; inset: 0; z-index: 0;
+    overflow: hidden;
+  }
+  .video-bg video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.18;
+    filter: saturate(1.3) brightness(0.65);
+  }
+  .video-overlay {
+    position: fixed; inset: 0; z-index: 1;
+    background:
+      linear-gradient(180deg,
+        rgba(10,28,8,0.88) 0%,
+        rgba(14,34,11,0.62) 40%,
+        rgba(10,28,8,0.85) 100%
+      ),
+      radial-gradient(ellipse 80% 60% at 15% 5%, rgba(56,142,60,0.30) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 70% at 90% 95%, rgba(249,168,37,0.12) 0%, transparent 60%);
+  }
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 2; opacity: 0.035;
+    background-image:
+      linear-gradient(rgba(249,168,37,0.8) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(249,168,37,0.8) 1px, transparent 1px);
+    background-size: 64px 64px;
+    pointer-events: none;
+  }
+  .grain {
+    position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0.05; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ─── NAVBAR ──────────────────────────────────── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,26,8,0.88);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(249,168,37,0.16);
+    padding: 0 2rem;
+    height: 68px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .nav-logo {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--green-600), var(--yellow-500));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800; color: var(--green-900);
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(249,168,37,0.25);
+  }
+  .nav-logo img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .nav-title { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.01em; }
+  .nav-title span { color: var(--yellow-400); }
+  .nav-right { display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; color: var(--green-200); }
+  .nav-tag {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(249,168,37,0.12);
+    border: 1px solid rgba(249,168,37,0.28);
+    padding: 5px 13px; border-radius: 20px;
+    color: var(--yellow-300); font-size: 0.75rem; font-weight: 600;
+  }
+  .home-btn {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(249,168,37,0.1);
+    border: 1px solid rgba(249,168,37,0.3);
+    padding: 7px 14px 7px 12px; border-radius: 20px;
+    color: var(--yellow-300); font-size: 0.8rem; font-weight: 600;
+    cursor: pointer; font-family: 'Sarabun', sans-serif;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    text-decoration: none;
+  }
+  .home-btn:hover {
+    background: rgba(249,168,37,0.2);
+    border-color: rgba(249,168,37,0.5);
+    transform: translateY(-1px);
+  }
+  #clock {
+    color: var(--yellow-300); font-weight: 600; font-size: 0.9rem;
+    font-variant-numeric: tabular-nums; font-family: var(--font-num);
+  }
+
+  /* ─── LAYOUT ──────────────────────────────────── */
+  .page { position: relative; z-index: 4; max-width: 1280px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+  /* ─── HERO ────────────────────────────────────── */
+  .hero { text-align: center; padding: 2.5rem 0 2rem; }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(249,168,37,0.13);
+    border: 1px solid rgba(249,168,37,0.35);
+    padding: 6px 18px 6px 14px; border-radius: 20px;
+    color: var(--yellow-300); font-size: 0.82rem; font-weight: 600;
+    margin-bottom: 1.4rem; letter-spacing: 0.03em;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.3rem);
+    font-weight: 800; line-height: 1.22; margin-bottom: 0.7rem;
+    letter-spacing: -0.01em;
+  }
+  .hero h1 span {
+    color: var(--yellow-400);
+    font-style: italic;
+    font-family: var(--font-num);
+    font-weight: 500;
+  }
+  .hero-sub { color: var(--green-200); font-size: 1rem; margin-bottom: 2.2rem; }
+
+  /* ─── SEARCH BOX ──────────────────────────────── */
+  .search-wrapper {
+    max-width: 520px; margin: 0 auto 1.2rem; position: relative;
+  }
+  .search-input {
+    width: 100%;
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(249,168,37,0.3);
+    border-radius: 14px;
+    padding: 15px 50px 15px 46px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 1rem; color: var(--white);
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    backdrop-filter: blur(8px);
+  }
+  .search-input::placeholder { color: rgba(165,214,167,0.55); }
+  .search-input:focus {
+    border-color: var(--yellow-400);
+    background: rgba(255,255,255,0.11);
+    box-shadow: 0 0 0 4px rgba(249,168,37,0.1);
+  }
+  .search-icon {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    pointer-events: none; color: var(--yellow-400); opacity: 0.85;
+  }
+  .search-clear {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    cursor: pointer; opacity: 0.55; color: var(--green-200);
+    display: none;
+    background: none; border: none; padding: 4px;
+    transition: opacity 0.2s, color 0.2s;
+  }
+  .search-clear:hover { opacity: 1; color: var(--yellow-300); }
+
+  /* ─── PROVINCE DROPDOWN ───────────────────────── */
+  .dropdown-wrapper {
+    max-width: 520px; margin: 0 auto 2rem; position: relative; z-index: 50;
+  }
+  .province-dropdown {
+    display: none;
+    background: rgba(9,24,7,0.98);
+    border: 1px solid rgba(249,168,37,0.28);
+    border-radius: 14px;
+    max-height: 300px; overflow-y: auto;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    backdrop-filter: blur(20px);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(249,168,37,0.3) transparent;
+  }
+  .province-dropdown.open { display: block; }
+  .dropdown-item {
+    padding: 11px 20px;
+    cursor: pointer;
+    font-size: 0.92rem;
+    color: var(--green-100);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dropdown-item:last-child { border-bottom: none; }
+  .dropdown-item:hover, .dropdown-item.highlight {
+    background: rgba(249,168,37,0.12);
+    color: var(--yellow-300);
+  }
+  .dropdown-item .region-tag {
+    font-size: 0.65rem; background: rgba(249,168,37,0.15);
+    border: 1px solid rgba(249,168,37,0.2);
+    padding: 2px 7px; border-radius: 10px;
+    color: var(--yellow-400); margin-left: auto; flex-shrink: 0;
+  }
+  .dropdown-empty {
+    padding: 20px; text-align: center;
+    color: var(--green-200); font-size: 0.9rem;
+  }
+
+  /* ─── SELECTED PROVINCE BADGE ─────────────────── */
+  .selected-badge {
+    display: none;
+    max-width: 520px; margin: 0 auto 1.5rem;
+    background: rgba(249,168,37,0.1);
+    border: 1px solid rgba(249,168,37,0.3);
+    border-radius: 12px; padding: 10px 20px;
+    font-size: 0.9rem; color: var(--yellow-300);
+    align-items: center; gap: 10px;
+    justify-content: center;
+  }
+  .selected-badge .badge-name { font-weight: 700; font-size: 1rem; }
+
+  /* ─── STATS ROW ───────────────────────────────── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1rem; margin-bottom: 2.2rem; text-align: center;
+    max-width: 600px; margin-left: auto; margin-right: auto;
+  }
+  .stat-item { padding: 0.5rem; position: relative; }
+  .stat-item:not(:last-child)::after {
+    content: ''; position: absolute; right: -0.5rem; top: 15%; bottom: 15%; width: 1px;
+    background: rgba(249,168,37,0.15);
+  }
+  .stat-num { font-family: var(--font-num); font-size: 2.1rem; font-weight: 600; color: var(--yellow-400); font-style: italic; }
+  .stat-label { font-size: 0.75rem; color: var(--green-200); margin-top: 2px; letter-spacing: 0.02em; }
+
+  /* ─── CURRENT WEATHER CARD ────────────────────── */
+  .current-card {
+    background: linear-gradient(135deg, rgba(27,94,32,0.55), rgba(10,28,8,0.8));
+    border: 1px solid rgba(249,168,37,0.22);
+    border-radius: 22px; padding: 2.2rem;
+    backdrop-filter: blur(20px);
+    margin-bottom: 1.5rem;
+    position: relative; overflow: hidden;
+  }
+  .current-card::before {
+    content: ''; position: absolute; top: -70px; right: -70px;
+    width: 240px; height: 240px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(249,168,37,0.14), transparent 70%);
+  }
+  .current-card::after {
+    content: ''; position: absolute; inset: 0; border-radius: 22px; padding: 1px;
+    background: linear-gradient(160deg, rgba(249,168,37,0.35), transparent 30%, transparent 70%, rgba(249,168,37,0.15));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events: none;
+  }
+  .current-top {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+    position: relative; z-index: 1;
+  }
+  .current-left { display: flex; align-items: center; gap: 1.6rem; }
+  .weather-dial {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(251,192,45,0.18), rgba(255,255,255,0.03) 70%);
+    border: 1px solid rgba(249,168,37,0.3);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 24px rgba(249,168,37,0.08);
+  }
+  .weather-icon-big { color: var(--yellow-400); filter: drop-shadow(0 4px 14px rgba(249,168,37,0.35)); }
+  .current-temp { font-family: var(--font-num); font-style: italic; font-size: 4.4rem; font-weight: 500; line-height: 1; color: var(--white); }
+  .current-temp sup { font-size: 1.4rem; color: var(--yellow-400); font-style: normal; }
+  .current-label { font-size: 1.05rem; color: var(--green-200); margin-top: 5px; }
+  .current-location { font-size: 1.4rem; font-weight: 700; color: var(--yellow-300); }
+  .current-date { font-size: 0.85rem; color: var(--green-200); margin-top: 4px; }
+
+  .current-meta {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
+    margin-top: 1.6rem; position: relative; z-index: 1;
+  }
+  .meta-item {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 0.8rem 1rem;
+    display: flex; align-items: center; gap: 0.8rem;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .meta-item:hover { background: rgba(249,168,37,0.06); border-color: rgba(249,168,37,0.2); }
+  .meta-icon {
+    color: var(--yellow-400); flex-shrink: 0;
+    width: 34px; height: 34px; border-radius: 9px;
+    background: rgba(249,168,37,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .meta-value { font-family: var(--font-num); font-size: 1.15rem; font-weight: 600; color: var(--white); }
+  .meta-key { font-size: 0.7rem; color: var(--green-200); }
+
+  /* ─── SECTION TITLE ───────────────────────────── */
+  .section-title {
+    font-size: 1.05rem; font-weight: 700; color: var(--yellow-400);
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 0.6rem;
+    letter-spacing: 0.01em;
+  }
+  .section-title .icon-inline { color: var(--yellow-400); }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(249,168,37,0.35), transparent);
+  }
+
+  /* ─── 7-DAY FORECAST ──────────────────────────── */
+  .forecast-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 0.75rem; margin-bottom: 2.2rem;
+  }
+  @media (max-width: 900px) { .forecast-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 600px) { .forecast-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .forecast-card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(249,168,37,0.14);
+    border-radius: 16px; padding: 1.1rem 0.75rem;
+    text-align: center; cursor: pointer;
+    transition: all 0.25s;
+    backdrop-filter: blur(10px);
+  }
+  .forecast-card:hover, .forecast-card.today {
+    background: rgba(249,168,37,0.1);
+    border-color: rgba(249,168,37,0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(249,168,37,0.15);
+  }
+  .forecast-card.today { border-color: var(--yellow-400); }
+  .fc-day { font-size: 0.75rem; color: var(--yellow-300); font-weight: 700; margin-bottom: 6px; }
+  .fc-date { font-size: 0.65rem; color: var(--green-200); margin-bottom: 10px; font-family: var(--font-num); }
+  .fc-icon { color: var(--yellow-400); margin-bottom: 8px; display: flex; justify-content: center; }
+  .fc-label { font-size: 0.65rem; color: var(--green-200); margin-bottom: 10px; min-height: 28px; }
+  .fc-temps { display: flex; justify-content: center; align-items: baseline; gap: 6px; font-family: var(--font-num); font-size: 0.95rem; font-weight: 600; }
+  .fc-max { color: var(--yellow-400); }
+  .fc-min { color: var(--green-200); }
+  .fc-rain, .fc-wind {
+    font-size: 0.65rem; color: #8ad6e0; margin-top: 5px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .fc-wind { color: var(--green-300); }
+
+  /* ─── HOURLY ──────────────────────────────────── */
+  .hourly-scroll {
+    display: flex; gap: 0.6rem; overflow-x: auto;
+    padding-bottom: 0.75rem; margin-bottom: 2.2rem;
+    scrollbar-width: thin; scrollbar-color: rgba(249,168,37,0.3) transparent;
+  }
+  .hourly-item {
+    flex: 0 0 82px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(249,168,37,0.12);
+    border-radius: 14px; padding: 0.8rem 0.5rem;
+    text-align: center; backdrop-filter: blur(8px);
+    transition: all 0.2s;
+  }
+  .hourly-item:hover {
+    background: rgba(249,168,37,0.1);
+    border-color: rgba(249,168,37,0.3);
+  }
+  .hi-time { font-size: 0.7rem; color: var(--yellow-300); font-weight: 600; margin-bottom: 6px; font-family: var(--font-num); }
+  .hi-icon { color: var(--yellow-400); margin-bottom: 6px; display: flex; justify-content: center; }
+  .hi-temp { font-family: var(--font-num); font-size: 0.95rem; font-weight: 600; color: var(--white); }
+  .hi-rain { font-size: 0.65rem; color: #8ad6e0; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 3px; }
+
+  /* ─── DETAIL CARDS GRID ───────────────────────── */
+  .detail-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1rem; margin-bottom: 2.2rem;
+  }
+  @media (max-width: 800px) { .detail-grid { grid-template-columns: repeat(2, 1fr); } }
+  .detail-card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(249,168,37,0.14);
+    border-radius: 16px; padding: 1.3rem;
+    text-align: center; backdrop-filter: blur(10px);
+  }
+  .detail-card .d-icon { color: var(--yellow-400); margin-bottom: 0.6rem; display: flex; justify-content: center; }
+  .detail-card .d-val { font-family: var(--font-num); font-size: 1.65rem; font-weight: 600; color: var(--yellow-400); font-style: italic; }
+  .detail-card .d-unit { font-size: 0.7rem; color: var(--green-200); margin-left: 2px; font-style: normal; }
+  .detail-card .d-label { font-size: 0.75rem; color: var(--green-200); margin-top: 4px; }
+  .detail-card .d-bar {
+    height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 10px; overflow: hidden;
+  }
+  .detail-card .d-bar-fill {
+    height: 100%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--green-500), var(--yellow-400));
+    transition: width 1s ease;
+  }
+
+  /* ─── SOURCE BADGE ────────────────────────────── */
+  .source-badge {
+    text-align: center; padding: 1rem;
+    font-size: 0.75rem; color: var(--green-200);
+    display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+  }
+  .source-badge a { color: var(--yellow-300); text-decoration: none; }
+  .source-badge a:hover { text-decoration: underline; }
+
+  /* ─── LOADING / ERROR ─────────────────────────── */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(10,26,8,0.88); backdrop-filter: blur(10px);
+    align-items: center; justify-content: center; flex-direction: column; gap: 1rem;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 3px solid rgba(249,168,37,0.2);
+    border-top-color: var(--yellow-400);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--yellow-300); font-size: 0.9rem; }
+
+  .fade-in { animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  footer {
+    text-align: center; padding: 2rem 1rem 1rem;
+    color: var(--green-200); font-size: 0.75rem; border-top: 1px solid rgba(249,168,37,0.1);
+    position: relative; z-index: 3; margin-top: 1rem;
+  }
+  footer span { color: var(--yellow-300); }
+
+  /* ─── PROMPT CARD (initial state) ────────────────── */
+  .prompt-card {
+    background: rgba(27,94,32,0.3);
+    border: 1px dashed rgba(249,168,37,0.3);
+    border-radius: 20px; padding: 3.2rem 2rem;
+    text-align: center; color: var(--green-200);
+    backdrop-filter: blur(10px);
+    margin-top: 1rem;
+  }
+  .prompt-card .p-icon { color: var(--yellow-400); opacity: 0.9; margin-bottom: 1.2rem; display: flex; justify-content: center; }
+  .prompt-card p { font-size: 1rem; line-height: 1.7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- VIDEO BACKGROUND -->
+<div class="video-bg">
+  <video autoplay muted loop playsinline>
+    <source src="video/YTDown_YouTube_Media_D2wT35xqGRQ_001_1080p.mp4" type="video/mp4">
+  </video>
+</div>
+<div class="video-overlay"></div>
+<div class="bg-grid"></div>
+<div class="grain"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">กำลังดึงข้อมูลพยากรณ์อากาศ...</div>
+</div>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand" onclick="goHome()" title="กลับหน้าแรก">
+    <div class="nav-logo"><img src="img/AFTER AFFACT (10).png" alt="AgriFuture Weather Logo"></div>
+    <div>
+      <div class="nav-title">AgriFuture <span>Weather</span></div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <a href="form.html"><button class="home-btn" onclick="goHome()"><span class="icon-inline" id="navHomeIcon"></span> หน้าแรก</button></a>
+    <div class="nav-tag"><span class="icon-inline" id="navTagIcon"></span> พยากรณ์อากาศ</div>
+    <span id="clock">--:--:--</span>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow"><span class="icon-inline" id="heroSatIcon"></span> ข้อมูลจากกรมอุตุนิยมวิทยาไทย</div>
+    <h1>พยากรณ์อากาศ <span>ทุก 77 จังหวัด</span></h1>
+    <p class="hero-sub">ค้นหาจังหวัดเพื่อดูข้อมูลสภาพอากาศล่าสุด ครบถ้วน แม่นยำ</p>
+
+    <!-- Search -->
+    <div class="search-wrapper">
+      <span class="search-icon icon-inline" id="searchIcon"></span>
+      <input
+        type="text"
+        class="search-input"
+        id="searchInput"
+        placeholder="พิมพ์ชื่อจังหวัด เช่น เชียงใหม่, ภูเก็ต, ขอนแก่น..."
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button class="search-clear icon-inline" id="searchClear" onclick="clearSearch()" aria-label="ล้างคำค้นหา"></button>
+    </div>
+    <div class="dropdown-wrapper">
+      <div class="province-dropdown" id="provinceDropdown"></div>
+    </div>
+
+    <!-- Selected badge -->
+    <div class="selected-badge" id="selectedBadge">
+      <span class="icon-inline" id="badgePinIcon"></span>
+      <span class="badge-name" id="badgeName">--</span>
+      <span id="badgeRegion" style="font-size:0.75rem;color:var(--green-200)"></span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-item">
+      <div class="stat-num">77</div>
+      <div class="stat-label">จังหวัด</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">7</div>
+      <div class="stat-label">วันพยากรณ์</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">24</div>
+      <div class="stat-label">ชั่วโมงต่อวัน</div>
+    </div>
+  </div>
+
+  <!-- PROMPT -->
+  <div class="prompt-card" id="promptCard">
+    <div class="p-icon" id="promptIcon"></div>
+    <p>กรุณาพิมพ์ชื่อจังหวัดในช่องค้นหาด้านบน<br>เพื่อดูข้อมูลพยากรณ์อากาศ</p>
+  </div>
+
+  <!-- CURRENT WEATHER -->
+  <div id="currentSection" style="display:none">
+    <div class="current-card fade-in">
+      <div class="current-top">
+        <div class="current-left">
+          <div class="weather-dial"><span class="weather-icon-big icon-inline" id="curIcon"></span></div>
+          <div>
+            <div class="current-temp" id="curTemp">--<sup>°C</sup></div>
+            <div class="current-label" id="curLabel">กำลังโหลด...</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="current-location" id="curLocation">--</div>
+          <div class="current-date" id="curDate">--</div>
+          <div style="font-size:0.75rem;color:var(--green-200);margin-top:6px" id="curUpdated">อัปเดต: --</div>
+        </div>
+      </div>
+      <div class="current-meta" id="currentMeta"></div>
+    </div>
+  </div>
+
+  <!-- 7-DAY FORECAST -->
+  <div id="forecastSection" style="display:none">
+    <div class="section-title"><span class="icon-inline" id="titleCalendarIcon"></span> พยากรณ์ 7 วัน</div>
+    <div class="forecast-grid" id="forecastGrid"></div>
+  </div>
+
+  <!-- HOURLY -->
+  <div id="hourlySection" style="display:none">
+    <div class="section-title"><span class="icon-inline" id="titleClockIcon"></span> พยากรณ์รายชั่วโมง (วันนี้)</div>
+    <div class="hourly-scroll" id="hourlyScroll"></div>
+  </div>
+
+  <!-- DETAIL CARDS -->
+  <div id="detailSection" style="display:none">
+    <div class="section-title"><span class="icon-inline" id="titleChartIcon"></span> รายละเอียดสภาพอากาศ</div>
+    <div class="detail-grid" id="detailGrid"></div>
+  </div>
+
+  <!-- SOURCE -->
+  <div class="source-badge" id="sourceSection" style="display:none">
+    <span class="icon-inline" id="sourceIcon"></span> ข้อมูลพยากรณ์อากาศโดย <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>
+    ร่วมกับฐานข้อมูล <a href="https://www.tmd.go.th" target="_blank">กรมอุตุนิยมวิทยาไทย</a>
+    | อัปเดตอัตโนมัติทุก 30 นาที
+  </div>
+
+</div>
+
+<footer>
+  <p>AgriFuture Weather &nbsp;|&nbsp; พัฒนาเพื่อเกษตรกรไทย &nbsp;|&nbsp;
+  ข้อมูลจาก <span>กรมอุตุนิยมวิทยา & Open-Meteo</span></p>
+</footer>
+
+<script>
+// ─── ICON LIBRARY (stroke-based line icons, 24x24) ──────────────────────
+function svg(inner, size) {
+  size = size || 24;
+  return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+}
+const ICONS = {
+  sun: svg('<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.6 4.6l1.85 1.85M17.55 17.55l1.85 1.85M2.5 12h2.6M18.9 12h2.6M4.6 19.4l1.85-1.85M17.55 6.45l1.85-1.85"/>'),
+  partlyCloudy: svg('<path d="M8.2 8.6a4 4 0 0 1 7.7-1.3"/><circle cx="9.2" cy="7.6" r="3" opacity="0.9"/><path d="M6.8 18.5h10.6a3.3 3.3 0 0 0 .5-6.56A4.6 4.6 0 0 0 9 10.9a3.7 3.7 0 0 0-2.2 7.6z"/>'),
+  cloud: svg('<path d="M6.8 18h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 9.9 3.9 3.9 0 0 0 6.8 18z"/>'),
+  fog: svg('<path d="M6.5 10.2h10.9a3.2 3.2 0 0 0 .2-6.4A4.7 4.7 0 0 0 8.4 2.6" opacity="0"/><path d="M5 9.5h11.2a3.1 3.1 0 0 0 .3-6.18A4.6 4.6 0 0 0 7.9 2.9 3.6 3.6 0 0 0 5 9.5z"/><path d="M3.5 14h17M4.5 17.2h15M6 20.4h12"/>'),
+  drizzle: svg('<path d="M6.8 12.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 4.7 3.9 3.9 0 0 0 6.8 12.8z"/><path d="M8.5 16.2l-1 2.3M12 16.2l-1 2.3M15.5 16.2l-1 2.3"/>'),
+  rain: svg('<path d="M6.8 11.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 3.7 3.9 3.9 0 0 0 6.8 11.8z"/><path d="M8 15.5l-1.4 3.2M12.3 15.5l-1.4 3.2M16.6 15.5l-1.4 3.2"/>'),
+  rainHeavy: svg('<path d="M6.8 10.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 2.7 3.9 3.9 0 0 0 6.8 10.8z"/><path d="M7 14.6l-1.6 4M11 14.6l-1.6 4M15 14.6l-1.6 4M19 14.6l-1.6 4"/>'),
+  snow: svg('<path d="M6.8 11.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 3.7 3.9 3.9 0 0 0 6.8 11.8z"/><path d="M8 16.3v3.4M6.4 18l3.2-1.7M9.6 18l-3.2-1.7"/><path d="M16 16.3v3.4M14.4 18l3.2-1.7M17.6 18l-3.2-1.7"/>'),
+  snowHeavy: svg('<path d="M6.8 9.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 1.7 3.9 3.9 0 0 0 6.8 9.8z" opacity="0.85"/><path d="M7 13.6v3.6M5.3 15.4l3.4-1.8M8.7 15.4l-3.4-1.8"/><path d="M12 14.6v3.6M10.3 16.4l3.4-1.8M13.7 16.4l-3.4-1.8"/><path d="M17 13.6v3.6M15.3 15.4l3.4-1.8M18.7 15.4l-3.4-1.8"/>'),
+  thunder: svg('<path d="M6.8 10.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 2.7 3.9 3.9 0 0 0 6.8 10.8z"/><path d="M13 12.5l-3.4 5.2h3l-1.6 4 4.7-6.1h-3.3z"/>'),
+  thunderHail: svg('<path d="M6.8 9.8h10.9a3.4 3.4 0 0 0 .3-6.78A4.9 4.9 0 0 0 8.4 1.7 3.9 3.9 0 0 0 6.8 9.8z"/><path d="M12.6 11.5l-3 4.6h2.6l-1.4 3.6 4.1-5.4h-2.9z"/><circle cx="6.3" cy="18.5" r="0.9"/><circle cx="9.6" cy="20" r="0.9"/>'),
+  unknown: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 16v.01M12 13c1.8-.6 2.4-1.8 2.4-2.9A2.4 2.4 0 0 0 12 7.7a2.4 2.4 0 0 0-2.4 2.4"/>'),
+  search: svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/>', 20),
+  pin: svg('<path d="M12 21.5s7-6.6 7-12.2A7 7 0 0 0 5 9.3c0 5.6 7 12.2 7 12.2z"/><circle cx="12" cy="9.2" r="2.4"/>', 18),
+  close: svg('<path d="M5 5l14 14M19 5L5 19"/>', 15),
+  home: svg('<path d="M4 11.5L12 4l8 7.5"/><path d="M6 10v9.5a1 1 0 0 0 1 1h3.2v-5.8h3.6v5.8H17a1 1 0 0 0 1-1V10"/>', 16),
+  satellite: svg('<rect x="9.3" y="9.3" width="5.4" height="5.4" rx="0.8" transform="rotate(45 12 12)"/><path d="M4.2 12l2.3 2.3M19.8 12l-2.3-2.3M12 4.2l2.3 2.3M12 19.8l-2.3-2.3"/><path d="M15.5 15.5l3.7 3.7M17.5 15.5l3.2 3.2M15.5 17.5l3.2 3.2"/>', 16),
+  calendar: svg('<rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.5h17M8 3v3.6M16 3v3.6"/>', 18),
+  clock: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.9"/>', 18),
+  chart: svg('<path d="M4 20V10M11 20V4M18 20v-7"/><path d="M2.5 20.5h19"/>', 18),
+  drop: svg('<path d="M12 3.5s6 6.9 6 11.3a6 6 0 0 1-12 0c0-4.4 6-11.3 6-11.3z"/>', 18),
+  wind: svg('<path d="M3 8.5h10.5a2.6 2.6 0 1 0-2.2-4"/><path d="M3 12.5h14.5a2.8 2.8 0 1 1-2.3 4.4"/><path d="M3 16.5h7.5a2.1 2.1 0 1 1-1.7 3.3"/>', 18),
+  thermo: svg('<path d="M12 14.8V5.2a2.2 2.2 0 0 0-4.4 0v9.6a4 4 0 1 0 4.4 0z"/><path d="M12 9.5h-2"/>', 18),
+  radio: svg('<path d="M12 12v9M8.5 21h7"/><circle cx="12" cy="7" r="4.5"/><path d="M5.5 12A9 9 0 0 1 12 3M18.5 12A9 9 0 0 0 12 3" opacity="0.55"/>', 15),
+  sprout: svg('<path d="M12 21v-8.5"/><path d="M12 12.5c0-4.5-3.6-8-8-8 0 4.5 3.6 8 8 8z"/><path d="M12 9.8c0-3.4 2.7-6.1 6.1-6.1 0 3.4-2.7 6.1-6.1 6.1z"/>', 46),
+};
+function wmo(code) { return WMO[code] || WMO.default; }
+
+// ─── ALL 77 PROVINCES ──────────────────────────────────────────────────
+const LOCATIONS = {
+  // ภาคกลาง
+  "กรุงเทพมหานคร":       { lat: 13.7563, lon: 100.5018, region: "ภาคกลาง" },
+  "กาญจนบุรี":           { lat: 14.0023, lon: 99.5483,  region: "ภาคกลาง" },
+  "ฉะเชิงเทรา":          { lat: 13.6900, lon: 101.0764, region: "ภาคกลาง" },
+  "ชัยนาท":              { lat: 15.1852, lon: 100.1253, region: "ภาคกลาง" },
+  "นครนายก":             { lat: 14.2043, lon: 101.2131, region: "ภาคกลาง" },
+  "นครปฐม":              { lat: 13.8196, lon: 100.0645, region: "ภาคกลาง" },
+  "นนทบุรี":             { lat: 13.8621, lon: 100.5144, region: "ภาคกลาง" },
+  "ปทุมธานี":            { lat: 14.0208, lon: 100.5250, region: "ภาคกลาง" },
+  "พระนครศรีอยุธยา":    { lat: 14.3692, lon: 100.5877, region: "ภาคกลาง" },
+  "ราชบุรี":             { lat: 13.5282, lon: 99.8134,  region: "ภาคกลาง" },
+  "ลพบุรี":              { lat: 14.7995, lon: 100.6534, region: "ภาคกลาง" },
+  "สมุทรปราการ":         { lat: 13.5991, lon: 100.5998, region: "ภาคกลาง" },
+  "สมุทรสงคราม":         { lat: 13.4098, lon: 100.0023, region: "ภาคกลาง" },
+  "สมุทรสาคร":           { lat: 13.5475, lon: 100.2754, region: "ภาคกลาง" },
+  "สระบุรี":             { lat: 14.5289, lon: 100.9109, region: "ภาคกลาง" },
+  "สิงห์บุรี":           { lat: 14.8936, lon: 100.3966, region: "ภาคกลาง" },
+  "สุพรรณบุรี":          { lat: 14.4744, lon: 100.1177, region: "ภาคกลาง" },
+  "อ่างทอง":             { lat: 14.5896, lon: 100.4547, region: "ภาคกลาง" },
+  // ภาคเหนือ
+  "เชียงใหม่":           { lat: 18.7883, lon: 98.9853,  region: "ภาคเหนือ" },
+  "เชียงราย":            { lat: 19.9105, lon: 99.8406,  region: "ภาคเหนือ" },
+  "ตาก":                 { lat: 16.8798, lon: 99.1265,  region: "ภาคเหนือ" },
+  "น่าน":                { lat: 18.7756, lon: 100.7730, region: "ภาคเหนือ" },
+  "พะเยา":               { lat: 19.1664, lon: 99.9009,  region: "ภาคเหนือ" },
+  "พิจิตร":              { lat: 16.4419, lon: 100.3490, region: "ภาคเหนือ" },
+  "พิษณุโลก":            { lat: 16.8211, lon: 100.2659, region: "ภาคเหนือ" },
+  "เพชรบูรณ์":           { lat: 16.4189, lon: 101.1594, region: "ภาคเหนือ" },
+  "แพร่":                { lat: 18.1445, lon: 100.1402, region: "ภาคเหนือ" },
+  "แม่ฮ่องสอน":          { lat: 19.3022, lon: 97.9654,  region: "ภาคเหนือ" },
+  "ลำปาง":               { lat: 18.2888, lon: 99.4927,  region: "ภาคเหนือ" },
+  "ลำพูน":               { lat: 18.5744, lon: 98.9867,  region: "ภาคเหนือ" },
+  "สุโขทัย":             { lat: 17.0051, lon: 99.8265,  region: "ภาคเหนือ" },
+  "อุตรดิตถ์":           { lat: 17.6200, lon: 100.0993, region: "ภาคเหนือ" },
+  // ภาคตะวันออกเฉียงเหนือ
+  "กาฬสินธุ์":           { lat: 16.4314, lon: 103.5059, region: "ภาคอีสาน" },
+  "ขอนแก่น":             { lat: 16.4419, lon: 102.8360, region: "ภาคอีสาน" },
+  "ชัยภูมิ":             { lat: 15.8068, lon: 102.0315, region: "ภาคอีสาน" },
+  "นครพนม":              { lat: 17.3910, lon: 104.7693, region: "ภาคอีสาน" },
+  "นครราชสีมา":          { lat: 14.9799, lon: 102.0978, region: "ภาคอีสาน" },
+  "บึงกาฬ":              { lat: 18.3618, lon: 103.6466, region: "ภาคอีสาน" },
+  "บุรีรัมย์":           { lat: 14.9932, lon: 103.1029, region: "ภาคอีสาน" },
+  "มหาสารคาม":           { lat: 16.1851, lon: 103.3007, region: "ภาคอีสาน" },
+  "มุกดาหาร":            { lat: 16.5436, lon: 104.7235, region: "ภาคอีสาน" },
+  "ยโสธร":               { lat: 15.7926, lon: 104.1453, region: "ภาคอีสาน" },
+  "ร้อยเอ็ด":            { lat: 16.0538, lon: 103.6520, region: "ภาคอีสาน" },
+  "เลย":                 { lat: 17.4861, lon: 101.7223, region: "ภาคอีสาน" },
+  "ศรีสะเกษ":            { lat: 15.1199, lon: 104.3220, region: "ภาคอีสาน" },
+  "สกลนคร":              { lat: 17.1554, lon: 104.1348, region: "ภาคอีสาน" },
+  "สุรินทร์":            { lat: 14.8820, lon: 103.4940, region: "ภาคอีสาน" },
+  "หนองคาย":             { lat: 17.8782, lon: 102.7421, region: "ภาคอีสาน" },
+  "หนองบัวลำภู":         { lat: 17.2031, lon: 102.4416, region: "ภาคอีสาน" },
+  "อำนาจเจริญ":          { lat: 15.8656, lon: 104.6257, region: "ภาคอีสาน" },
+  "อุดรธานี":            { lat: 17.4138, lon: 102.7877, region: "ภาคอีสาน" },
+  "อุบลราชธานี":         { lat: 15.2287, lon: 104.8564, region: "ภาคอีสาน" },
+  // ภาคตะวันออก
+  "จันทบุรี":            { lat: 12.6105, lon: 102.1035, region: "ภาคตะวันออก" },
+  "ชลบุรี":              { lat: 13.3611, lon: 100.9847, region: "ภาคตะวันออก" },
+  "ตราด":                { lat: 12.2428, lon: 102.5175, region: "ภาคตะวันออก" },
+  "ปราจีนบุรี":          { lat: 14.0508, lon: 101.3714, region: "ภาคตะวันออก" },
+  "ระยอง":               { lat: 12.6814, lon: 101.2816, region: "ภาคตะวันออก" },
+  "สระแก้ว":             { lat: 13.8246, lon: 102.0647, region: "ภาคตะวันออก" },
+  // ภาคตะวันตก
+  "ประจวบคีรีขันธ์":    { lat: 11.8126, lon: 99.7966,  region: "ภาคตะวันตก" },
+  "เพชรบุรี":            { lat: 13.1119, lon: 99.9401,  region: "ภาคตะวันตก" },
+  // ภาคใต้
+  "กระบี่":              { lat: 8.0863,  lon: 98.9063,  region: "ภาคใต้" },
+  "ชุมพร":               { lat: 10.4930, lon: 99.1800,  region: "ภาคใต้" },
+  "ตรัง":                { lat: 7.5594,  lon: 99.6115,  region: "ภาคใต้" },
+  "นครศรีธรรมราช":       { lat: 8.4325,  lon: 99.9599,  region: "ภาคใต้" },
+  "นราธิวาส":            { lat: 6.4261,  lon: 101.8253, region: "ภาคใต้" },
+  "ปัตตานี":             { lat: 6.8695,  lon: 101.2501, region: "ภาคใต้" },
+  "พระบาง":              { lat: 8.7995,  lon: 99.7962,  region: "ภาคใต้" },
+  "พังงา":               { lat: 8.4514,  lon: 98.5256,  region: "ภาคใต้" },
+  "พัทลุง":              { lat: 7.6167,  lon: 100.0741, region: "ภาคใต้" },
+  "ภูเก็ต":              { lat: 7.8804,  lon: 98.3923,  region: "ภาคใต้" },
+  "ยะลา":                { lat: 6.5426,  lon: 101.2801, region: "ภาคใต้" },
+  "ระนอง":               { lat: 9.9528,  lon: 98.6085,  region: "ภาคใต้" },
+  "สงขลา":               { lat: 7.1896,  lon: 100.5950, region: "ภาคใต้" },
+  "สตูล":                { lat: 6.6238,  lon: 100.0674, region: "ภาคใต้" },
+  "สุราษฎร์ธานี":        { lat: 9.1382,  lon: 99.3214,  region: "ภาคใต้" },
+};
+
+const WMO = {
+  0:  { label: "ท้องฟ้าแจ่มใส",         icon: "sun" },
+  1:  { label: "ส่วนใหญ่แจ่มใส",        icon: "partlyCloudy" },
+  2:  { label: "มีเมฆบางส่วน",          icon: "partlyCloudy" },
+  3:  { label: "มืดครึ้ม",              icon: "cloud" },
+  45: { label: "หมอกลง",                icon: "fog" },
+  48: { label: "หมอกน้ำแข็ง",          icon: "fog" },
+  51: { label: "ฝนปรอยๆ เบา",          icon: "drizzle" },
+  53: { label: "ฝนปรอยๆ ปานกลาง",      icon: "drizzle" },
+  55: { label: "ฝนปรอยๆ หนัก",         icon: "rain" },
+  61: { label: "ฝนเบา",                 icon: "rain" },
+  63: { label: "ฝนปานกลาง",            icon: "rain" },
+  65: { label: "ฝนหนัก",               icon: "rainHeavy" },
+  71: { label: "หิมะเบา",              icon: "snow" },
+  73: { label: "หิมะปานกลาง",          icon: "snow" },
+  75: { label: "หิมะหนัก",             icon: "snowHeavy" },
+  80: { label: "ฝนตกเล็กน้อย",         icon: "rain" },
+  81: { label: "ฝนตกปานกลาง",          icon: "rain" },
+  82: { label: "ฝนตกหนัก",             icon: "thunder" },
+  85: { label: "หิมะตกเบา",            icon: "snow" },
+  86: { label: "หิมะตกหนัก",           icon: "snowHeavy" },
+  95: { label: "พายุฝนฟ้าคะนอง",       icon: "thunder" },
+  96: { label: "พายุฝนลูกเห็บ",        icon: "thunderHail" },
+  99: { label: "พายุฝนลูกเห็บหนัก",   icon: "thunderHail" },
+  default: { label: "ไม่ทราบสภาพ", icon: "unknown" },
+};
+
+const THAI_DAYS   = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+const THAI_MONTHS = ["","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+
+let currentProvince = null;
+let refreshTimer = null;
+let highlightIdx = -1;
+let filteredList = [];
+
+// ─── STATIC ICON MOUNTS ─────────────────────────────────
+document.getElementById("navHomeIcon").innerHTML = ICONS.home;
+document.getElementById("navTagIcon").innerHTML = ICONS.partlyCloudy.replace('width="24" height="24"','width="14" height="14"');
+document.getElementById("heroSatIcon").innerHTML = ICONS.satellite;
+document.getElementById("searchIcon").innerHTML = ICONS.search;
+document.getElementById("searchClear").innerHTML = ICONS.close;
+document.getElementById("badgePinIcon").innerHTML = ICONS.pin;
+document.getElementById("promptIcon").innerHTML = ICONS.sprout;
+document.getElementById("titleCalendarIcon").innerHTML = ICONS.calendar;
+document.getElementById("titleClockIcon").innerHTML = ICONS.clock;
+document.getElementById("titleChartIcon").innerHTML = ICONS.chart;
+document.getElementById("sourceIcon").innerHTML = ICONS.radio;
+
+// ─── UTILS ─────────────────────────────────────────────
+function thaiDate(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()+1]} ${d.getFullYear()+543}`;
+}
+function thaiDay(dateStr) { return THAI_DAYS[new Date(dateStr).getDay()]; }
+function todayStr() { return new Date().toISOString().split("T")[0]; }
+function show(id) { document.getElementById(id).style.display = ""; }
+function hide(id) { document.getElementById(id).style.display = "none"; }
+
+// ─── CLOCK ─────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById("clock").textContent =
+    `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")} น.`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── HOME BUTTON ───────────────────────────────────────
+function goHome() {
+  currentProvince = null;
+  if (refreshTimer) clearTimeout(refreshTimer);
+  searchInput.value = "";
+  clearBtn.style.display = "none";
+  dropdown.classList.remove("open");
+  document.getElementById("selectedBadge").style.display = "none";
+  hide("currentSection");
+  hide("forecastSection");
+  hide("hourlySection");
+  hide("detailSection");
+  hide("sourceSection");
+  show("promptCard");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ─── SEARCH ────────────────────────────────────────────
+const searchInput = document.getElementById("searchInput");
+const dropdown = document.getElementById("provinceDropdown");
+const clearBtn = document.getElementById("searchClear");
+
+searchInput.addEventListener("input", handleSearch);
+searchInput.addEventListener("keydown", handleKeydown);
+searchInput.addEventListener("focus", () => {
+  if (searchInput.value.trim()) renderDropdown(searchInput.value.trim());
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-wrapper") && !e.target.closest(".dropdown-wrapper")) {
+    dropdown.classList.remove("open");
+  }
+});
+
+function handleSearch() {
+  const val = searchInput.value.trim();
+  clearBtn.style.display = val ? "flex" : "none";
+  highlightIdx = -1;
+  if (val.length === 0) {
+    dropdown.classList.remove("open");
+    return;
+  }
+  renderDropdown(val);
+}
+
+function renderDropdown(query) {
+  const allProvinces = Object.keys(LOCATIONS);
+  filteredList = allProvinces.filter(p => p.includes(query));
+
+  dropdown.innerHTML = "";
+  if (filteredList.length === 0) {
+    dropdown.innerHTML = `<div class="dropdown-empty">ไม่พบจังหวัด "${query}"</div>`;
+    dropdown.classList.add("open");
+    return;
+  }
+
+  filteredList.forEach((name, i) => {
+    const item = document.createElement("div");
+    item.className = "dropdown-item";
+    item.dataset.name = name;
+    // highlight matched text
+    const idx = name.indexOf(query);
+    const before = name.slice(0, idx);
+    const match  = name.slice(idx, idx + query.length);
+    const after  = name.slice(idx + query.length);
+    item.innerHTML = `
+      <span>${before}<strong style="color:var(--yellow-400)">${match}</strong>${after}</span>
+      <span class="region-tag">${LOCATIONS[name].region}</span>
+    `;
+    item.addEventListener("mousedown", () => selectProvince(name));
+    dropdown.appendChild(item);
+  });
+  dropdown.classList.add("open");
+}
+
+function handleKeydown(e) {
+  const items = dropdown.querySelectorAll(".dropdown-item");
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    highlightIdx = Math.min(highlightIdx + 1, items.length - 1);
+    updateHighlight(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    highlightIdx = Math.max(highlightIdx - 1, 0);
+    updateHighlight(items);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (highlightIdx >= 0 && filteredList[highlightIdx]) {
+      selectProvince(filteredList[highlightIdx]);
+    } else if (filteredList.length > 0) {
+      selectProvince(filteredList[0]);
+    }
+  } else if (e.key === "Escape") {
+    dropdown.classList.remove("open");
+  }
+}
+
+function updateHighlight(items) {
+  items.forEach((el, i) => {
+    el.classList.toggle("highlight", i === highlightIdx);
+    if (i === highlightIdx) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function clearSearch() {
+  searchInput.value = "";
+  clearBtn.style.display = "none";
+  dropdown.classList.remove("open");
+  searchInput.focus();
+}
+
+function selectProvince(name) {
+  currentProvince = name;
+  searchInput.value = name;
+  clearBtn.style.display = "flex";
+  dropdown.classList.remove("open");
+  highlightIdx = -1;
+
+  // Show selected badge
+  document.getElementById("badgeName").textContent = name;
+  document.getElementById("badgeRegion").textContent = LOCATIONS[name].region;
+  document.getElementById("selectedBadge").style.display = "flex";
+
+  hide("promptCard");
+  fetchWeather(name);
+}
+
+// ─── FETCH ─────────────────────────────────────────────
+async function fetchWeather(province) {
+  const { lat, lon } = LOCATIONS[province];
+  document.getElementById("loadingOverlay").classList.add("show");
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast`
+      + `?latitude=${lat}&longitude=${lon}`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max`
+      + `&hourly=temperature_2m,relativehumidity_2m,weathercode,windspeed_10m,precipitation_probability`
+      + `&current_weather=true`
+      + `&timezone=Asia%2FBangkok`
+      + `&forecast_days=7`;
+    const res = await fetch(url);
+    const data = await res.json();
+    renderWeather(province, data);
+  } catch (e) {
+    alert("ไม่สามารถดึงข้อมูลพยากรณ์อากาศได้\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต");
+    console.error(e);
+  } finally {
+    document.getElementById("loadingOverlay").classList.remove("show");
+  }
+}
+
+// ─── RENDER ────────────────────────────────────────────
+function renderWeather(province, data) {
+  const daily  = data.daily;
+  const cur    = data.current_weather;
+  const hourly = data.hourly;
+  const now    = new Date();
+  const today  = todayStr();
+
+  let humidity = 75, rainProb = 0;
+  const htimes = hourly.time || [];
+  const nowHour = String(now.getHours()).padStart(2,"0");
+  const nowPrefix = `${today}T${nowHour}`;
+  const idx = htimes.findIndex(t => t.startsWith(nowPrefix));
+  if (idx >= 0) {
+    humidity = hourly.relativehumidity_2m[idx] ?? 75;
+    rainProb = hourly.precipitation_probability[idx] ?? 0;
+  }
+
+  const curInfo = wmo(cur.weathercode);
+
+  document.getElementById("curIcon").innerHTML  = ICONS[curInfo.icon].replace('width="24" height="24"','width="48" height="48"');
+  document.getElementById("curTemp").innerHTML    = `${Math.round(cur.temperature)}<sup>°C</sup>`;
+  document.getElementById("curLabel").textContent = curInfo.label;
+  document.getElementById("curLocation").textContent = province;
+  document.getElementById("curDate").textContent  = `วัน${THAI_DAYS[now.getDay()]}ที่ ${thaiDate(today)}`;
+  document.getElementById("curUpdated").textContent =
+    `อัปเดต: ${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()+543} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")} น.`;
+
+  const metaData = [
+    { icon: ICONS.drop,   val: humidity,            unit:"%",    key:"ความชื้น" },
+    { icon: ICONS.rain,   val: rainProb,             unit:"%",    key:"โอกาสฝนตก" },
+    { icon: ICONS.wind,   val: Math.round(cur.windspeed), unit:"km/h", key:"ความเร็วลม" },
+    { icon: ICONS.thermo, val: `${daily.temperature_2m_min[0]}°/${daily.temperature_2m_max[0]}°`, unit:"", key:"ต่ำสุด/สูงสุด วันนี้" },
+  ];
+  document.getElementById("currentMeta").innerHTML = metaData.map(m => `
+    <div class="meta-item">
+      <div class="meta-icon">${m.icon.replace('width="24" height="24"','width="18" height="18"')}</div>
+      <div>
+        <div class="meta-value">${m.val}<span style="font-size:0.7rem;color:var(--green-200)">${m.unit}</span></div>
+        <div class="meta-key">${m.key}</div>
+      </div>
+    </div>
+  `).join("");
+  show("currentSection");
+
+  // 7-DAY
+  const fg = document.getElementById("forecastGrid");
+  fg.innerHTML = "";
+  daily.time.forEach((d, i) => {
+    const info = wmo(daily.weathercode[i]);
+    const rain = (daily.precipitation_sum[i] || 0).toFixed(1);
+    const wind = Math.round(daily.windspeed_10m_max[i] || 0);
+    const div = document.createElement("div");
+    div.className = "forecast-card" + (i === 0 ? " today" : "");
+    div.innerHTML = `
+      <div class="fc-day">${i===0?"วันนี้":i===1?"พรุ่งนี้":"วัน"+thaiDay(d)}</div>
+      <div class="fc-date">${thaiDate(d)}</div>
+      <div class="fc-icon">${ICONS[info.icon].replace('width="24" height="24"','width="30" height="30"')}</div>
+      <div class="fc-label">${info.label}</div>
+      <div class="fc-temps">
+        <span class="fc-max">${Math.round(daily.temperature_2m_max[i])}°</span>
+        <span style="color:var(--green-200);">/</span>
+        <span class="fc-min">${Math.round(daily.temperature_2m_min[i])}°</span>
+      </div>
+      <div class="fc-rain">${ICONS.drop.replace('width="24" height="24"','width="11" height="11"')} ${rain} mm</div>
+      <div class="fc-wind">${ICONS.wind.replace('width="24" height="24"','width="11" height="11"')} ${wind} km/h</div>
+    `;
+    fg.appendChild(div);
+  });
+  show("forecastSection");
+
+  // HOURLY
+  const hs = document.getElementById("hourlyScroll");
+  hs.innerHTML = "";
+  let count = 0;
+  htimes.forEach((t, i) => {
+    if (!t.startsWith(today) || count >= 24) return;
+    count++;
+    const hInfo = wmo(hourly.weathercode[i]);
+    const rain_p = hourly.precipitation_probability[i] ?? 0;
+    const div = document.createElement("div");
+    div.className = "hourly-item";
+    div.innerHTML = `
+      <div class="hi-time">${t.slice(11,16)}</div>
+      <div class="hi-icon">${ICONS[hInfo.icon].replace('width="24" height="24"','width="22" height="22"')}</div>
+      <div class="hi-temp">${Math.round(hourly.temperature_2m[i])}°C</div>
+      <div class="hi-rain">${ICONS.drop.replace('width="24" height="24"','width="11" height="11"')} ${rain_p}%</div>
+    `;
+    hs.appendChild(div);
+  });
+  show("hourlySection");
+
+  // DETAIL
+  const detailData = [
+    { icon: ICONS.drop,   val: humidity,                 unit:"%",    label:"ความชื้นสัมพัทธ์", bar: humidity },
+    { icon: ICONS.rain,   val: rainProb,                 unit:"%",    label:"โอกาสฝนตก",       bar: rainProb },
+    { icon: ICONS.sun,    val: daily.uv_index_max[0],    unit:"",     label:"ดัชนี UV",           bar: (daily.uv_index_max[0]/12)*100 },
+    { icon: ICONS.wind,   val: Math.round(cur.windspeed), unit:"km/h", label:"ความเร็วลม",      bar: Math.min(cur.windspeed,100) },
+  ];
+  document.getElementById("detailGrid").innerHTML = detailData.map(d => `
+    <div class="detail-card">
+      <div class="d-icon">${d.icon.replace('width="24" height="24"','width="26" height="26"')}</div>
+      <div><span class="d-val">${d.val}</span><span class="d-unit">${d.unit}</span></div>
+      <div class="d-label">${d.label}</div>
+      <div class="d-bar"><div class="d-bar-fill" style="width:${Math.round(d.bar)}%"></div></div>
+    </div>
+  `).join("");
+  show("detailSection");
+  show("sourceSection");
+
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => fetchWeather(currentProvince), 30 * 60 * 1000);
+}
+</script>
+</body>
+</html>

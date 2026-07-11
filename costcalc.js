@@ -2,24 +2,18 @@
    AgriFuture AI — Cost Calculator logic
    ══════════════════════════════════════════ */
 
-/* ── CONFIG — adjust these to match your real schema ──
-   These names are my best guess at how the "result" page
-   might store data in Firestore. Rename the values on the
-   right to match your actual collection/field names. */
+/* ── CONFIG ──
+   ผลวิเคราะห์จากหน้า result.html ไม่ได้ถูกเก็บใน Firestore collection
+   แยกต่างหาก แต่ถูกบันทึกลง localStorage คีย์ 'agrifuture_usage'
+   (คีย์เดียวกับที่ profile.js ใช้แสดง "ประวัติการทำงาน") ดังนั้น
+   costcalc จึงอ่านจากแหล่งเดียวกันนี้ แทนที่จะ query Firestore ตรง ๆ */
 const CONFIG = {
-    resultsCollection: 'results',      // Firestore collection holding result-page output
-    userIdField: 'uid',                // field on each result doc that stores the owner's uid
-    fields: {
-        cropType:  'cropType',   // ชนิดพืช
-        area:      'areaRai',    // พื้นที่ปลูก (ไร่)
-        title:     'title',      // หัวข้อ/ชื่อผลวิเคราะห์ (fallback: cropType)
-        summary:   'summary',    // สรุปผลวิเคราะห์แบบสั้น (ถ้ามี)
-        createdAt: 'createdAt'   // Firestore Timestamp
-    },
     // Where the Flask backend (app.py) is running.
     // Change this when you deploy the backend somewhere other than localhost.
     apiBaseUrl: 'http://localhost:5001'
 };
+
+const USAGE_KEY = 'agrifuture_usage';
 
 /* ── Default cost-per-rai figures (บาท/ไร่) ──
    These are illustrative starting points only — every field is
@@ -42,8 +36,8 @@ const CATEGORY_META = [
     { key: 'water',      label: 'ค่าน้ำ',    color: 'var(--yellow-soft)' }
 ];
 
-let currentUid = null;
-let availableResults = [];   // docs fetched from Firestore, not yet added
+let currentEmail = null;
+let availableResults = [];   // sessions from localStorage, not yet added
 let pickerSelectedIds = new Set();
 let selectedEntries = [];    // entries added to the calculator
 
@@ -60,35 +54,37 @@ const toast            = $('toast');
 const toastMsg         = $('toastMsg');
 
 /* ══════════════════════════════════════════
-   AUTH + LOAD RESULTS
+   AUTH + LOAD RESULTS (จาก localStorage แทน Firestore)
    ══════════════════════════════════════════ */
-firebase.auth().onAuthStateChanged(async user => {
+firebase.auth().onAuthStateChanged(user => {
     if (!user) return;
-    currentUid = user.uid;
-    await loadAvailableResults();
+    currentEmail = user.email;
+    loadAvailableResults();
 });
 
-async function loadAvailableResults() {
-    const pickerBody = $('pickerBody');
-    try {
-        const db = firebase.firestore();
-        const snap = await db.collection(CONFIG.resultsCollection)
-            .where(CONFIG.userIdField, '==', currentUid)
-            .orderBy(CONFIG.fields.createdAt, 'desc')
-            .limit(100)
-            .get();
+function loadAvailableResults() {
+    if (!currentEmail) { availableResults = []; return; }
 
-        availableResults = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } catch (err) {
-        console.error('โหลดผลวิเคราะห์ไม่สำเร็จ:', err);
-        availableResults = [];
-        pickerBody.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <p>โหลดข้อมูลจากหน้า result ไม่สำเร็จ<br>
-                ตรวจสอบชื่อ collection/field ใน CONFIG ที่ด้านบนของ costcalc.js</p>
-            </div>`;
-    }
+    const all = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    const userData = all[currentEmail] || { sessions: [] };
+
+    // เอาเฉพาะ session ที่มีผลวิเคราะห์จริง (มี selected_crop)
+    availableResults = (userData.sessions || [])
+        .filter(s => s.result && s.result.selected_crop)
+        .map((s, idx) => ({
+            id: `${s.time || idx}-${idx}`,      // ไม่มี doc.id เหมือน Firestore เลยประกอบเอง
+            title: s.type || s.result.selected_crop.name || 'ผลวิเคราะห์',
+            cropType: (s.inputs && s.inputs.interested_crop) || s.result.selected_crop.name || 'ไม่ระบุพืช',
+            area: parseAreaToRai(s.inputs && s.inputs.area),
+            createdAt: s.time
+        }));
+}
+
+// แปลงข้อความพื้นที่แบบ "5 ไร่" / "20+ ไร่" ที่ form.html ส่งมา ให้เป็นตัวเลขไร่
+function parseAreaToRai(areaText) {
+    if (!areaText) return 1;
+    const match = String(areaText).match(/[\d.]+/);
+    return match ? Number(match[0]) : 1;
 }
 
 function renderPicker() {
@@ -105,11 +101,10 @@ function renderPicker() {
 
     pickerBody.innerHTML = '';
     availableResults.forEach(doc => {
-        const f = CONFIG.fields;
-        const title = doc[f.title] || doc[f.cropType] || 'ไม่มีชื่อ';
-        const crop  = doc[f.cropType] || '-';
-        const area  = doc[f.area] ?? '-';
-        const date  = formatDate(doc[f.createdAt]);
+        const title = doc.title;
+        const crop  = doc.cropType;
+        const area  = doc.area;
+        const date  = formatDate(doc.createdAt);
         const isSelected = pickerSelectedIds.has(doc.id);
 
         const item = document.createElement('label');
@@ -141,8 +136,8 @@ function updatePickerCount() {
 
 function formatDate(ts) {
     try {
-        const d = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
-        if (!d) return '-';
+        const d = ts ? new Date(ts) : null;
+        if (!d || isNaN(d.getTime())) return '-';
         return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
     } catch { return '-'; }
 }
@@ -158,9 +153,9 @@ function escapeHtml(str) {
    ══════════════════════════════════════════ */
 const pickerOverlay = $('pickerOverlay');
 
-$('openPickerBtn').addEventListener('click', async () => {
+$('openPickerBtn').addEventListener('click', () => {
     pickerSelectedIds = new Set(selectedEntries.map(e => e.id));
-    if (currentUid) await loadAvailableResults();
+    if (currentEmail) loadAvailableResults();
     renderPicker();
     pickerOverlay.classList.add('open');
 });
@@ -170,19 +165,18 @@ pickerOverlay.addEventListener('click', e => {
 });
 
 $('confirmAddBtn').addEventListener('click', () => {
-    const f = CONFIG.fields;
     pickerSelectedIds.forEach(id => {
         if (selectedEntries.find(e => e.id === id)) return; // already added
         const doc = availableResults.find(d => d.id === id);
         if (!doc) return;
-        const cropType = doc[f.cropType] || 'ไม่ระบุพืช';
+        const cropType = doc.cropType;
         const defaults = COST_DEFAULTS[cropType] || COST_DEFAULTS.default;
         selectedEntries.push({
-            id,
-            title: doc[f.title] || cropType,
+            id: doc.id,
+            title: doc.title,
             cropType,
-            area: Number(doc[f.area]) || 1,
-            createdAt: doc[f.createdAt],
+            area: Number(doc.area) || 1,
+            createdAt: doc.createdAt,
             seedPerRai: defaults.seed,
             fertilizerPerRai: defaults.fertilizer,
             laborPerRai: defaults.labor,

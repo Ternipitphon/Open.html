@@ -2,40 +2,6 @@
 AgriFuture AI — Cost Calculator backend
 =========================================
 A small Flask API with one endpoint: POST /api/analyze-cost
-
-It receives the cost breakdown that costcalc.js already computed
-(seed / fertilizer / labor / water cost per entry, plus totals) and
-asks Gemini to analyze the cost structure and produce practical,
-Thai-language recommendations. The frontend renders the returned
-markdown in the "คำแนะนำจาก AI" panel.
-
-Run locally:
-    pip install -r requirements.txt
-    cp .env.example .env        # then paste your GEMINI_API_KEY
-    python app.py
-
-Deploying on Render (or any host that assigns its own port):
-    Render sets a PORT environment variable and expects the app to
-    bind to it — it will NOT necessarily be 5001. This file now reads
-    PORT from the environment (falling back to 5001 for local dev) and
-    binds to 0.0.0.0 so the platform can route traffic to it. If the
-    app doesn't bind to the right port, Render serves its own error
-    page for every request — which has no CORS headers, and shows up
-    in the browser as a confusing "blocked by CORS policy" error even
-    though CORS(app) is configured correctly below.
-
-    For production, prefer a real WSGI server instead of the Flask
-    dev server, e.g. set your Render Start Command to:
-        gunicorn app:app --bind 0.0.0.0:$PORT
-    (add `gunicorn` to requirements.txt if you use this).
-    Running `python app.py` will also work now that it binds to
-    the right port, but Flask's built-in server isn't meant for
-    production traffic.
-
-The frontend (costcalc.js CONFIG.apiBaseUrl) expects this to be
-running at http://localhost:5001 by default for local dev — set
-PRODUCTION_API_BASE_URL in costcalc.js to this service's public URL
-when deployed.
 """
 
 import os
@@ -47,25 +13,26 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+# โหลดค่าจากไฟล์ .env (สำหรับการรันบนเครื่องตัวเอง Local)
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # allow the static frontend (served from a different origin/port) to call this API
+# เปิดให้หน้าบ้านที่เป็น Static Web (เช่น GitHub Pages) สามารถดึงข้อมูลข้ามโดเมนได้โดยไม่ติดบล็อกความปลอดภัย
+CORS(app)
 
 logging.basicConfig(level=logging.INFO)
 
+# ดึงรหัส API Key จากระบบ Environment Variables ของ Render หรือไฟล์ .env
 API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
     app.logger.warning(
-        "GEMINI_API_KEY is not set — /api/analyze-cost will fail until you set it "
-        "(see .env.example)."
+        "WARNING: ยังไม่ได้ตั้งค่า GEMINI_API_KEY ในระบบ — /api/analyze-cost จะไม่สามารถทำงานได้"
     )
 
+# สร้างการเชื่อมต่อกับระบบ Google GenAI SDK เวอร์ชันใหม่
 client = genai.Client(api_key=API_KEY) if API_KEY else None
 
-# gemini-3.5-flash is fast and cheap, and plenty for this analysis task.
-# Swap to gemini-3.1-pro-preview if you want deeper multi-step reasoning
-# on more complex cost structures.
+# ใช้โมเดล gemini-3.5-flash มีความเร็วสูงและตอบคำถามภาษาไทยได้ดีเยี่ยม
 MODEL = "gemini-3.5-flash"
 MAX_OUTPUT_TOKENS = 1200
 
@@ -78,29 +45,31 @@ SYSTEM_PROMPT = """\
 - ตอบเป็นภาษาไทยเท่านั้น กระชับ ตรงประเด็น ไม่ยืดยาวเกินไป (ไม่เกินประมาณ 300 คำ)
 - จัดรูปแบบด้วย Markdown แบบง่าย: ใช้ "### " สำหรับหัวข้อย่อย และ "- " สำหรับ
   รายการ (bullet) และ "**ข้อความ**" สำหรับตัวหนา เท่านั้น ห้ามใช้ตาราง Markdown
-- โครงสร้างคำตอบควรมี 2-3 หัวข้อ เช่น "จุดที่ควรระวัง", "คำแนะนำเพื่อลดต้นทุน"
-  และถ้าเหมาะสมให้เพิ่ม "ข้อสังเกตเพิ่มเติม"
+- โครงสร้างคำตอบควรมี 2-3 หัวข้อ เช่น "### จุดที่ควรระวัง", "### คำแนะนำเพื่อลดต้นทุน"
+  และถ้าเหมาะสมให้เพิ่ม "### ข้อสังเกตเพิ่มเติม"
 - อ้างอิงตัวเลขที่ผู้ใช้ส่งมาจริง ๆ (เช่น สัดส่วนต้นทุนแต่ละหมวดเทียบกับรวม)
   อย่าสมมติตัวเลขที่ไม่ได้รับมา
 - ให้คำแนะนำที่เกษตรกรทำได้จริงในทางปฏิบัติ ไม่ใช่คำแนะนำทั่วไปที่คลุมเครือ
 """
 
-
 @app.route("/api/analyze-cost", methods=["POST"])
 def analyze_cost():
     if client is None:
-        return jsonify({"error": "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า GEMINI_API_KEY"}), 500
+        return jsonify({"error": "เซิร์ฟเวอร์หลังบ้านยังไม่ได้ตั้งค่า GEMINI_API_KEY ใน Environment Variables ของ Render"}), 500
 
+    # ดึงข้อมูล JSON Payload จากหน้าบ้าน
     data = request.get_json(force=True, silent=True) or {}
     entries = data.get("entries", [])
     totals = data.get("totals", {})
 
     if not entries:
-        return jsonify({"error": "ไม่มีข้อมูลต้นทุนสำหรับวิเคราะห์"}), 400
+        return jsonify({"error": "ไม่พบข้อมูลต้นทุนในระบบที่ส่งมาวิเคราะห์"}), 400
 
+    # แปลงโครงสร้างข้อมูลตัวเลขให้กลายเป็น Prompt สำหรับป้อนให้ AI
     prompt = build_prompt(entries, totals)
 
     try:
+        # เรียกใช้งานโมเดล Gemini เจนข้อความออกมาตามคำสั่งของระบบ
         response = client.models.generate_content(
             model=MODEL,
             contents=prompt,
@@ -113,13 +82,16 @@ def analyze_cost():
         text = (response.text or "").strip()
 
         if not text:
-            return jsonify({"error": "AI ไม่ได้ส่งคำตอบกลับมา"}), 502
+            return jsonify({"error": "ระบบปัญญาประดิษฐ์ (AI) ไม่ได้ส่งข้อมูลคำตอบกลับมา"}), 502
 
         return jsonify({"recommendation": text})
 
-    except Exception as exc:  # noqa: BLE001 - surface any API error to the client
-        app.logger.exception("Gemini API call failed")
-        return jsonify({"error": "เรียก AI ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "detail": str(exc)}), 502
+    except Exception as exc:
+        app.logger.exception("การเชื่อมต่อผ่านระบบ Gemini API เกิดความล้มเหลว")
+        return jsonify({
+            "error": "ไม่สามารถติดต่อระบบ AI ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลัง", 
+            "detail": str(exc)
+        }), 502
 
 
 def build_prompt(entries, totals):
@@ -167,20 +139,22 @@ def index():
     return jsonify({
         "service": "AgriFuture AI - Cost Calculator backend",
         "status": "running",
+        "configured": client is not None,
         "endpoints": ["/api/analyze-cost (POST)", "/api/health (GET)"]
     })
 
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "model": MODEL, "configured": client is not None})
+    return jsonify({
+        "status": "ok", 
+        "model": MODEL, 
+        "configured": client is not None
+    })
 
 
 if __name__ == "__main__":
-    # Render (and most PaaS hosts) inject a PORT env var and route traffic
-    # to it — the app MUST bind to that port, not a hardcoded one, or the
-    # platform's own error page answers every request instead of Flask
-    # (which is what caused the "missing CORS header" symptom).
+    # รองรับการดึงพอร์ตแบบสุ่มอัตโนมัติที่ Render จ่ายมาให้แอปพลิเคชัน
     port = int(os.environ.get("PORT", 5001))
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     app.run(host="0.0.0.0", port=port, debug=debug_mode)

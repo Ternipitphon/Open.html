@@ -1,160 +1,145 @@
-"""
-AgriFuture AI — Cost Calculator backend
-=========================================
-A small Flask API with one endpoint: POST /api/analyze-cost
-"""
-
 import os
-import logging
-
+import json
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from dotenv import load_dotenv
 
-# โหลดค่าจากไฟล์ .env (สำหรับการรันบนเครื่องตัวเอง Local)
 load_dotenv()
-
 app = Flask(__name__)
-# เปิดให้หน้าบ้านที่เป็น Static Web (เช่น GitHub Pages) สามารถดึงข้อมูลข้ามโดเมนได้โดยไม่ติดบล็อกความปลอดภัย
-CORS(app)
 
-logging.basicConfig(level=logging.INFO)
+# อนุญาต CORS สำหรับทุกโดเมนและรองรับ Content-Type: application/json ข้ามโดเมนได้ 100%
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# ดึงรหัส API Key จากระบบ Environment Variables ของ Render หรือไฟล์ .env
-API_KEY = os.environ.get("GEMINI_API_KEY")
-if not API_KEY:
-    app.logger.warning(
-        "WARNING: ยังไม่ได้ตั้งค่า GEMINI_API_KEY ในระบบ — /api/analyze-cost จะไม่สามารถทำงานได้"
-    )
+# กำหนด API Key ของ Gemini
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# สร้างการเชื่อมต่อกับระบบ Google GenAI SDK เวอร์ชันใหม่
-client = genai.Client(api_key=API_KEY) if API_KEY else None
+# ฟังก์ชันช่วยลองใหม่หากติด Rate Limit (429) ด้วยวิธี Exponential Backoff
+def generate_content_with_retry(model, prompt, retries=5, backoff_in_seconds=2):
+    for i in range(retries):
+        try:
+            return model.generate_content(prompt)
+        except Exception as e:
+            if "429" in str(e) and i < retries - 1:
+                # เพิ่มระยะเวลาดีเลย์ขึ้นทีละเท่าตัว
+                time.sleep(backoff_in_seconds * (2 ** i))
+                continue
+            raise e
 
-# ใช้โมเดล gemini-3.5-flash มีความเร็วสูงและตอบคำถามภาษาไทยได้ดีเยี่ยม
-MODEL = "gemini-3.5-flash"
-MAX_OUTPUT_TOKENS = 1200
+@app.route('/api/analyze', methods=['POST'])
+def analyze_crop():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบข้อมูลที่ส่งมาจากหน้าบ้าน (Body ว่างเปล่า)"}), 400
+        
+        # ดึงข้อมูลจาก JSON ที่ส่งมาจากหน้าบ้าน
+        province        = data.get('province', '')
+        district        = data.get('district', '')
+        budget          = data.get('budget', '')
+        area            = data.get('area', '')
+        water_source    = data.get('water_source', '')
+        planting_month  = data.get('planting_month', '')
+        interested_crop = data.get('interested_crop', '')
 
-SYSTEM_PROMPT = """\
-คุณคือที่ปรึกษาด้านต้นทุนการเกษตรของแอป AgriFuture AI
-หน้าที่ของคุณคือวิเคราะห์โครงสร้างต้นทุนการผลิตที่ผู้ใช้ส่งมา (ค่าพันธุ์ ค่าปุ๋ย
-ค่าแรง ค่าน้ำ) แล้วให้คำแนะนำเชิงลึกที่นำไปปฏิบัติได้จริงในภาษาไทย
+        # ตรวจสอบว่ามีข้อมูลพืชที่สนใจส่งมาวิเคราะห์หรือไม่ (ป้องกัน Error 400 จากเงื่อนไขคีย์ว่าง)
+        if not interested_crop:
+            return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบข้อมูลชื่อพืชที่สนใจส่งมาวิเคราะห์"}), 400
 
-กติกาการตอบ:
-- ตอบเป็นภาษาไทยเท่านั้น กระชับ ตรงประเด็น ไม่ยืดยาวเกินไป (ไม่เกินประมาณ 300 คำ)
-- จัดรูปแบบด้วย Markdown แบบง่าย: ใช้ "### " สำหรับหัวข้อย่อย และ "- " สำหรับ
-  รายการ (bullet) และ "**ข้อความ**" สำหรับตัวหนา เท่านั้น ห้ามใช้ตาราง Markdown
-- โครงสร้างคำตอบควรมี 2-3 หัวข้อ เช่น "### จุดที่ควรระวัง", "### คำแนะนำเพื่อลดต้นทุน"
-  และถ้าเหมาะสมให้เพิ่ม "### ข้อสังเกตเพิ่มเติม"
-- อ้างอิงตัวเลขที่ผู้ใช้ส่งมาจริง ๆ (เช่น สัดส่วนต้นทุนแต่ละหมวดเทียบกับรวม)
-  อย่าสมมติตัวเลขที่ไม่ได้รับมา
-- ให้คำแนะนำที่เกษตรกรทำได้จริงในทางปฏิบัติ ไม่ใช่คำแนะนำทั่วไปที่คลุมเครือ
+        # ตรวจสอบความถูกต้องของ API Key
+        if not os.environ.get("GEMINI_API_KEY"):
+            return jsonify({"success": False, "error": "[AgriFuture-Backend] ไม่พบ GEMINI_API_KEY กรุณาตั้งค่าในไฟล์ .env"}), 500
+
+        # ประกอบ Prompt ส่งให้ AI พร้อมกำหนดสเปค JSON ที่ต้องการอย่างละเอียด
+        prompt = f"""
+คุณคือ AI ผู้เชี่ยวชาญด้านการเกษตรอัจฉริยะ (AgriFuture AI)
+จงวิเคราะห์ความเหมาะสมในการปลูกพืชตามข้อมูลของผู้ใช้ต่อไปนี้ด้วยความรอบคอบสูงสุด:
+- พืชที่สนใจปลูก: {interested_crop}
+- พื้นที่แปลงปลูก: อำเภอ {district} จังหวัด {province} (ขนาดพื้นที่: {area})
+- งบประมาณเริ่มต้นที่ตั้งไว้: {budget} บาท
+- แหล่งน้ำที่สามารถเข้าถึงได้: {water_source}
+- ช่วงเวลาที่จะเริ่มทำการปลูก: เดือน {planting_month}
+
+จงประเมินความเป็นไปได้เชิงวิชาการเกษตรและการคาดการณ์สภาวะตลาด และตอบกลับมาเป็นรูปแบบโครงสร้าง JSON ภาษาไทยเท่านั้น ห้ามมีคำอธิบายอื่นนอกเหนือจาก JSON โครงสร้างต้องตรงตามรูปแบบตัวอย่างนี้เป๊ะๆ:
+{{
+  "selected_crop": {{
+    "name": "{interested_crop}",
+    "success_chance": "สูง หรือ ปานกลาง หรือ ต่ำ",
+    "success_percent": 85,
+    "estimated_income": "80,000 - 120,000",
+    "roi_months": "6 - 8",
+    "pros": ["ระบุข้อดีเกษตรกรรม/การตลาดของพืชนี้ตัวเลือกที่ 1", "ระบุข้อดีตัวเลือกที่ 2"],
+    "cons": ["ระบุปัจจัยเสี่ยง/ปัญหาของพืชนี้ตัวเลือกที่ 1", "ระบุปัจจัยเสี่ยงตัวเลือกที่ 2"],
+    "tips": ["เคล็ดลับการปลูกให้ได้ผลผลิตดีสำหรับมือใหม่ 1", "เคล็ดลับที่ 2"]
+  }},
+  "alternative_crops": [
+    {{
+      "name": "ชื่อพืชทางเลือกแนะนำชนิดที่ 1",
+      "success_percent": 90,
+      "success_chance": "สูง",
+      "difficulty": "ง่าย",
+      "market_trend": "เติบโตสูง",
+      "estimated_income": "100,000",
+      "roi_months": "5",
+      "reason": "อธิบายเหตุผลว่าทำไมพืชชนิดนี้ถึงเหมาะสมกับทรัพยากรของเขาในพื้นที่นี้"
+    }}
+  ],
+  "monthly_crops": {{
+    "มกราคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "กุมภาพันธ์": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "มีนาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "เมษายน": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "พฤษภาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "มิถุนายน": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "กรกฎาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "สิงหาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "กันยายน": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "ตุลาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "พฤศจิกายน": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }},
+    "ธันวาคม": {{ "crop": "พืชราคาดีที่ควรปลูกเดือนนี้", "note": "เหตุผลประกอบทางเศรษฐศาสตร์" }}
+  }},
+  "general_advice": "บทสรุปเชิงลึกและคำแนะนำภาพรวมจากระบบ AI เพื่อความมั่นใจของเกษตรกร",
+  "warning": "คำเตือนวิกฤตที่ต้องเฝ้าระวังเป็นพิเศษ เช่น โรคระบาดประจำพื้นที่ หรือช่วงแล้งวิกฤต ถ้าไม่มีให้ระบุเป็นสตริงว่าง"
+}}
 """
-
-@app.route("/api/analyze-cost", methods=["POST"])
-def analyze_cost():
-    if client is None:
-        return jsonify({"error": "เซิร์ฟเวอร์หลังบ้านยังไม่ได้ตั้งค่า GEMINI_API_KEY ใน Environment Variables ของ Render"}), 500
-
-    # ดึงข้อมูล JSON Payload จากหน้าบ้าน
-    data = request.get_json(force=True, silent=True) or {}
-    entries = data.get("entries", [])
-    totals = data.get("totals", {})
-
-    if not entries:
-        return jsonify({"error": "ไม่พบข้อมูลต้นทุนในระบบที่ส่งมาวิเคราะห์"}), 400
-
-    # แปลงโครงสร้างข้อมูลตัวเลขให้กลายเป็น Prompt สำหรับป้อนให้ AI
-    prompt = build_prompt(entries, totals)
-
-    try:
-        # เรียกใช้งานโมเดล Gemini เจนข้อความออกมาตามคำสั่งของระบบ
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                max_output_tokens=MAX_OUTPUT_TOKENS,
-                temperature=0.4,
-            ),
+        
+        # เรียกใช้งานโมเดลล่าสุด gemini-2.5-flash
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            generation_config={
+                "temperature": 0.15,
+                "response_mime_type": "application/json"
+            }
         )
-        text = (response.text or "").strip()
-
-        if not text:
-            return jsonify({"error": "ระบบปัญญาประดิษฐ์ (AI) ไม่ได้ส่งข้อมูลคำตอบกลับมา"}), 502
-
-        return jsonify({"recommendation": text})
-
-    except Exception as exc:
-        app.logger.exception("การเชื่อมต่อผ่านระบบ Gemini API เกิดความล้มเหลว")
+        
+        response = generate_content_with_retry(model, prompt)
+        raw_text = response.text.strip()
+        
+        # ตรวจเช็คเพื่อความปลอดภัย หากมี Markdown backticks ห่อหุ้มมาให้ทำการถอดออก
+        if raw_text.startswith("```json"):
+            raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+        elif raw_text.startswith("```"):
+            raw_text = raw_text.split("```")[1].split("```")[0].strip()
+            
+        ai_result = json.loads(raw_text)
         return jsonify({
-            "error": "ไม่สามารถติดต่อระบบ AI ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลัง", 
-            "detail": str(exc)
-        }), 502
+            "success": True, 
+            "data": ai_result,
+            "backend_signature": "AgriFuture-Gemini-v2"
+        })
 
+    except json.JSONDecodeError as e:
+        return jsonify({
+            "success": False, 
+            "error": f"[AgriFuture-Backend] AI ประมวลผลข้อมูลกลับมาคลาดเคลื่อนจากโครงสร้างมาตรฐาน: {str(e)}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "success": False, 
+            "error": f"[AgriFuture-Backend] ระบบเกิดข้อผิดพลาดในการประมวลผล: {str(e)}"
+        }), 500
 
-def build_prompt(entries, totals):
-    lines = ["นี่คือข้อมูลต้นทุนการผลิตที่ผู้ใช้เลือกไว้ในระบบคำนวณต้นทุน:\n"]
-
-    for i, e in enumerate(entries, 1):
-        lines.append(
-            f"{i}. {e.get('title', e.get('cropType', 'ไม่ระบุ'))} "
-            f"(พืช: {e.get('cropType', '-')}, พื้นที่: {_num(e.get('area'))} ไร่)\n"
-            f"   - ค่าพันธุ์: {_num(e.get('seedCost'))} บาท\n"
-            f"   - ค่าปุ๋ย: {_num(e.get('fertilizerCost'))} บาท\n"
-            f"   - ค่าแรง: {_num(e.get('laborCost'))} บาท\n"
-            f"   - ค่าน้ำ: {_num(e.get('waterCost'))} บาท\n"
-            f"   - รวม: {_num(e.get('totalCost'))} บาท"
-        )
-
-    lines.append(
-        "\nสรุปรวมทุกรายการ:\n"
-        f"- พื้นที่รวม: {_num(totals.get('area'))} ไร่\n"
-        f"- ค่าพันธุ์รวม: {_num(totals.get('seed'))} บาท\n"
-        f"- ค่าปุ๋ยรวม: {_num(totals.get('fertilizer'))} บาท\n"
-        f"- ค่าแรงรวม: {_num(totals.get('labor'))} บาท\n"
-        f"- ค่าน้ำรวม: {_num(totals.get('water'))} บาท\n"
-        f"- ต้นทุนรวมทั้งหมด: {_num(totals.get('grandTotal'))} บาท\n"
-        f"- ต้นทุนเฉลี่ยต่อไร่: {_num(totals.get('perRai'))} บาท/ไร่"
-    )
-
-    lines.append(
-        "\nช่วยวิเคราะห์เชิงลึกว่าโครงสร้างต้นทุนนี้เป็นอย่างไร หมวดไหนสูงผิดปกติ "
-        "เมื่อเทียบกับสัดส่วนที่เหมาะสม และให้คำแนะนำที่นำไปปฏิบัติได้จริงเพื่อลดต้นทุน "
-        "หรือเพิ่มประสิทธิภาพการผลิต"
-    )
-    return "\n".join(lines)
-
-
-def _num(value):
-    try:
-        return f"{float(value):,.0f}"
-    except (TypeError, ValueError):
-        return "0"
-
-
-@app.route("/", methods=["GET"])
-def index():
-    return jsonify({
-        "service": "AgriFuture AI - Cost Calculator backend",
-        "status": "running",
-        "configured": client is not None,
-        "endpoints": ["/api/analyze-cost (POST)", "/api/health (GET)"]
-    })
-
-
-@app.route("/api/health", methods=["GET"])
-def health():
-    return jsonify({
-        "status": "ok", 
-        "model": MODEL, 
-        "configured": client is not None
-    })
-
-
-if __name__ == "__main__":
-    # รองรับการดึงพอร์ตแบบสุ่มอัตโนมัติที่ Render จ่ายมาให้แอปพลิเคชัน
-    port = int(os.environ.get("PORT", 5001))
-    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+if __name__ == '__main__':
+    # เปลี่ยนย้าย Port รันหนีระบบ Chatbot เก่าที่ขวางพอร์ตอยู่ เพื่อตัดปัญหาพอร์ตทับซ้อนกัน 100%
+    app.run(host='0.0.0.0', port=5001, debug=True)

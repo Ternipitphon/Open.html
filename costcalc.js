@@ -7,10 +7,19 @@
    แยกต่างหาก แต่ถูกบันทึกลง localStorage คีย์ 'agrifuture_usage'
    (คีย์เดียวกับที่ profile.js ใช้แสดง "ประวัติการทำงาน") ดังนั้น
    costcalc จึงอ่านจากแหล่งเดียวกันนี้ แทนที่จะ query Firestore ตรง ๆ */
+
+// ★★★ แก้บรรทัดนี้ ★★★
+// ใส่ URL public ของ backend app.py (ตัวที่มี /api/analyze-cost) ที่ deploy ไว้จริง
+// เช่น 'https://agrifuture-cost-backend.onrender.com'
+const PRODUCTION_API_BASE_URL = 'https://agrifuture-cost-backend.onrender.com';
+
 const CONFIG = {
-    // Where the Flask backend (app.py) is running.
-    // Change this when you deploy the backend somewhere other than localhost.
-    apiBaseUrl: 'http://localhost:5001'
+    // ตอน dev บนเครื่องตัวเอง (localhost/127.0.0.1) -> ใช้ localhost:5001 อัตโนมัติ
+    // ตอนขึ้นเว็บจริง (เช่น open-html.onrender.com) -> ใช้ PRODUCTION_API_BASE_URL ด้านบน
+    apiBaseUrl: (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1'
+    ) ? 'http://localhost:5001' : PRODUCTION_API_BASE_URL
 };
 
 const USAGE_KEY = 'agrifuture_usage';

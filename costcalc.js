@@ -8,10 +8,8 @@
    (คีย์เดียวกับที่ profile.js ใช้แสดง "ประวัติการทำงาน") ดังนั้น
    costcalc จึงอ่านจากแหล่งเดียวกันนี้ แทนที่จะ query Firestore ตรง ๆ */
 
-// ★★★ แก้บรรทัดนี้ ★★★
-// ใส่ URL public ของ backend app.py (ตัวที่มี /api/analyze-cost) ที่ deploy ไว้จริง
-// เช่น 'https://agrifuture-cost-backend.onrender.com'
-const PRODUCTION_API_BASE_URL = 'https://agrifuture-cost-backend.onrender.com';
+// ★★★ URL public ของ backend app.py (ตัวที่มี /api/analyze-cost) ที่ deploy ไว้จริง ★★★
+const PRODUCTION_API_BASE_URL = 'https://open-html.onrender.com';
 
 const CONFIG = {
     // ตอน dev บนเครื่องตัวเอง (localhost/127.0.0.1) -> ใช้ localhost:5001 อัตโนมัติ

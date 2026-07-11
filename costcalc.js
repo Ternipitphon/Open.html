@@ -12,12 +12,8 @@
 const PRODUCTION_API_BASE_URL = 'https://open-html.onrender.com';
 
 const CONFIG = {
-    // ตอน dev บนเครื่องตัวเอง (localhost/127.0.0.1) -> ใช้ localhost:5001 อัตโนมัติ
-    // ตอนขึ้นเว็บจริง (เช่น open-html.onrender.com) -> ใช้ PRODUCTION_API_BASE_URL ด้านบน
-    apiBaseUrl: (
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1'
-    ) ? 'http://localhost:5001' : PRODUCTION_API_BASE_URL
+    // ล็อกให้เรียกใช้งานไปยัง PRODUCTION_API_BASE_URL (Render) โดยตรงเพื่อความแม่นยำในการใช้งานแบบออนไลน์
+    apiBaseUrl: PRODUCTION_API_BASE_URL
 };
 
 const USAGE_KEY = 'agrifuture_usage';

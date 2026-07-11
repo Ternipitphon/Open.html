@@ -162,6 +162,15 @@ def _num(value):
         return "0"
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "service": "AgriFuture AI - Cost Calculator backend",
+        "status": "running",
+        "endpoints": ["/api/analyze-cost (POST)", "/api/health (GET)"]
+    })
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "model": MODEL, "configured": client is not None})

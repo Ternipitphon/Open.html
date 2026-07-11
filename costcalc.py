@@ -5,18 +5,37 @@ A small Flask API with one endpoint: POST /api/analyze-cost
 
 It receives the cost breakdown that costcalc.js already computed
 (seed / fertilizer / labor / water cost per entry, plus totals) and
-asks Claude to analyze the cost structure and produce practical,
+asks Gemini to analyze the cost structure and produce practical,
 Thai-language recommendations. The frontend renders the returned
 markdown in the "คำแนะนำจาก AI" panel.
 
 Run locally:
     pip install -r requirements.txt
-    cp .env.example .env        # then paste your ANTHROPIC_API_KEY
+    cp .env.example .env        # then paste your GEMINI_API_KEY
     python app.py
 
+Deploying on Render (or any host that assigns its own port):
+    Render sets a PORT environment variable and expects the app to
+    bind to it — it will NOT necessarily be 5001. This file now reads
+    PORT from the environment (falling back to 5001 for local dev) and
+    binds to 0.0.0.0 so the platform can route traffic to it. If the
+    app doesn't bind to the right port, Render serves its own error
+    page for every request — which has no CORS headers, and shows up
+    in the browser as a confusing "blocked by CORS policy" error even
+    though CORS(app) is configured correctly below.
+
+    For production, prefer a real WSGI server instead of the Flask
+    dev server, e.g. set your Render Start Command to:
+        gunicorn app:app --bind 0.0.0.0:$PORT
+    (add `gunicorn` to requirements.txt if you use this).
+    Running `python app.py` will also work now that it binds to
+    the right port, but Flask's built-in server isn't meant for
+    production traffic.
+
 The frontend (costcalc.js CONFIG.apiBaseUrl) expects this to be
-running at http://localhost:5001 by default — change both sides
-together if you deploy elsewhere.
+running at http://localhost:5001 by default for local dev — set
+PRODUCTION_API_BASE_URL in costcalc.js to this service's public URL
+when deployed.
 """
 
 import os
@@ -24,7 +43,8 @@ import logging
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from anthropic import Anthropic
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -34,17 +54,20 @@ CORS(app)  # allow the static frontend (served from a different origin/port) to 
 
 logging.basicConfig(level=logging.INFO)
 
-API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
     app.logger.warning(
-        "ANTHROPIC_API_KEY is not set — /api/analyze-cost will fail until you set it "
+        "GEMINI_API_KEY is not set — /api/analyze-cost will fail until you set it "
         "(see .env.example)."
     )
 
-client = Anthropic(api_key=API_KEY) if API_KEY else None
+client = genai.Client(api_key=API_KEY) if API_KEY else None
 
-MODEL = "claude-sonnet-5"
-MAX_TOKENS = 1200
+# gemini-3.5-flash is fast and cheap, and plenty for this analysis task.
+# Swap to gemini-3.1-pro-preview if you want deeper multi-step reasoning
+# on more complex cost structures.
+MODEL = "gemini-3.5-flash"
+MAX_OUTPUT_TOKENS = 1200
 
 SYSTEM_PROMPT = """\
 คุณคือที่ปรึกษาด้านต้นทุนการเกษตรของแอป AgriFuture AI
@@ -66,7 +89,7 @@ SYSTEM_PROMPT = """\
 @app.route("/api/analyze-cost", methods=["POST"])
 def analyze_cost():
     if client is None:
-        return jsonify({"error": "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY"}), 500
+        return jsonify({"error": "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า GEMINI_API_KEY"}), 500
 
     data = request.get_json(force=True, silent=True) or {}
     entries = data.get("entries", [])
@@ -78,15 +101,16 @@ def analyze_cost():
     prompt = build_prompt(entries, totals)
 
     try:
-        response = client.messages.create(
+        response = client.models.generate_content(
             model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
+                temperature=0.4,
+            ),
         )
-        text = "".join(
-            block.text for block in response.content if block.type == "text"
-        ).strip()
+        text = (response.text or "").strip()
 
         if not text:
             return jsonify({"error": "AI ไม่ได้ส่งคำตอบกลับมา"}), 502
@@ -94,7 +118,7 @@ def analyze_cost():
         return jsonify({"recommendation": text})
 
     except Exception as exc:  # noqa: BLE001 - surface any API error to the client
-        app.logger.exception("Claude API call failed")
+        app.logger.exception("Gemini API call failed")
         return jsonify({"error": "เรียก AI ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "detail": str(exc)}), 502
 
 
@@ -144,4 +168,10 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    # Render (and most PaaS hosts) inject a PORT env var and route traffic
+    # to it — the app MUST bind to that port, not a hardcoded one, or the
+    # platform's own error page answers every request instead of Flask
+    # (which is what caused the "missing CORS header" symptom).
+    port = int(os.environ.get("PORT", 5001))
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
